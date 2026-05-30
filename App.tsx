@@ -7,21 +7,21 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 
 import HomeScreen from "./screens/HomeScreen";
-import FoodDiaryScreen from "./screens/FoodDiaryScreen";
-import FoodAnalysisScreen from "./screens/FoodAnalysisScreen";
 import HistoryScreen from "./screens/HistoryScreen";
+import ProfileScreen from "./screens/ProfileScreen";
 import CameraScreen from "./screens/CameraScreen";
+import FoodAnalysisScreen from "./screens/FoodAnalysisScreen";
 
 export type RootStackParamList = {
   Tabs: undefined;
-  FoodAnalysis: { imageUri: string; analysisResult?: any };
   Camera: undefined;
+  FoodAnalysis: { imageUri: string; analysisResult?: any };
 };
 
 export type TabParamList = {
   Home: undefined;
-  Diary: undefined;
   History: undefined;
+  Profile: undefined;
 };
 
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -30,36 +30,48 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const rootNav = navigation.getParent<NativeStackNavigationProp<RootStackParamList>>();
 
+  const renderTab = (index: number) => {
+    const route = state.routes[index];
+    const { options } = descriptors[route.key];
+    const focused = state.index === index;
+    const icons: Record<string, string> = {
+      Home: "🏠",
+      History: "📅",
+      Profile: "👤",
+    };
+
+    return (
+      <TouchableOpacity
+        key={route.key}
+        style={styles.tabItem}
+        activeOpacity={0.7}
+        onPress={() => {
+          if (!focused) navigation.navigate(route.name);
+        }}
+      >
+        <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>
+          {icons[route.name]}
+        </Text>
+        <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>
+          {route.name}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <View style={styles.tabBarContainer}>
       <View style={styles.tabBar}>
-        {state.routes.map((route, index) => {
-          const { options } = descriptors[route.key];
-          const focused = state.index === index;
-          const icons: Record<string, string> = {
-            Home: "🏠",
-            Diary: "📋",
-            History: "📅",
-          };
-
-          return (
-            <TouchableOpacity
-              key={route.key}
-              style={styles.tabItem}
-              activeOpacity={0.7}
-              onPress={() => {
-                if (!focused) navigation.navigate(route.name);
-              }}
-            >
-              <Text style={styles.tabIcon}>{icons[route.name]}</Text>
-              <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>
-                {route.name}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+        {renderTab(0)} {/* Home */}
+        {renderTab(1)} {/* History */}
+        
+        {/* Placeholder spacer for floating central camera FAB */}
+        <View style={styles.fabPlaceholder} />
+        
+        {renderTab(2)} {/* Profile */}
       </View>
 
+      {/* Center Floating Camera FAB */}
       <TouchableOpacity
         style={styles.fab}
         activeOpacity={0.85}
@@ -79,8 +91,8 @@ function TabNavigator() {
       screenOptions={{ headerShown: false }}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Diary" component={FoodDiaryScreen} />
       <Tab.Screen name="History" component={HistoryScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
 }
@@ -104,14 +116,15 @@ export default function App() {
 const styles = StyleSheet.create({
   tabBarContainer: {
     position: "relative",
-    backgroundColor: "#13131A",
+    backgroundColor: "#0d0d1a",
     borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.07)",
+    borderTopColor: "#1f1f35",
   },
   tabBar: {
     flexDirection: "row",
     paddingBottom: 24,
     paddingTop: 10,
+    alignItems: "center",
   },
   tabItem: {
     flex: 1,
@@ -121,27 +134,36 @@ const styles = StyleSheet.create({
   },
   tabIcon: {
     fontSize: 20,
+    color: "rgba(255, 255, 255, 0.3)",
+  },
+  tabIconActive: {
+    color: "#7C3AED",
   },
   tabLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "rgba(255,255,255,0.35)",
+    fontSize: 10,
+    fontWeight: "700",
+    color: "rgba(255, 255, 255, 0.3)",
+    letterSpacing: 0.5,
   },
   tabLabelActive: {
     color: "#7C3AED",
   },
+  fabPlaceholder: {
+    width: 62,
+    height: 40,
+  },
   fab: {
     position: "absolute",
-    top: -28,
+    top: -24,
     alignSelf: "center",
-    width: 62,
-    height: 62,
-    borderRadius: 31,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: "#7C3AED",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 4,
-    borderColor: "#13131A",
+    borderColor: "#080810",
     shadowColor: "#7C3AED",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.55,
@@ -149,6 +171,6 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   fabIcon: {
-    fontSize: 26,
+    fontSize: 24,
   },
 });
