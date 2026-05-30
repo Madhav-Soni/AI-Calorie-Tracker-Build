@@ -10,9 +10,8 @@ import {
   StatusBar,
   SafeAreaView,
   StyleSheet,
-  ActivityIndicator,
 } from "react-native";
-import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
+import Svg, { Circle, Defs, LinearGradient, Stop, Rect } from "react-native-svg";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../App";
@@ -23,261 +22,396 @@ import { calculateStreaks } from "../streak";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_WIDTH = SCREEN_WIDTH - 32;
 
-// ─── Initial Mock Data fallback if store is empty ──────────────────────────
-const MOCK_INITIAL_MEALS = [
-  { id: "1", name: "Oats & Banana", calories: 380, protein: 12, carbs: 68, fat: 6, loggedAt: new Date().toISOString() },
-  { id: "2", name: "Grilled Salmon Bowl", calories: 542, protein: 38, carbs: 41, fat: 22, loggedAt: new Date().toISOString() },
-  { id: "3", name: "Greek Yogurt", calories: 120, protein: 18, carbs: 9, fat: 2, loggedAt: new Date().toISOString() },
-];
-
 const GOAL = { calories: 2000, protein: 150, carbs: 200, fat: 65 };
+
+const WEEKLY_DATA = [
+  { day: "M", kcal: 1820 },
+  { day: "T", kcal: 2150 },
+  { day: "W", kcal: 1680 },
+  { day: "T", kcal: 1950 },
+  { day: "F", kcal: 2200 },
+  { day: "S", kcal: 1450 },
+  { day: "S", kcal: 1850 },
+];
 
 export default function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   
-  // Zustand Store
   const meals = useMealStore((s) => s.meals);
   const deleteMeal = useMealStore((s) => s.deleteMeal);
   const getDailyTotals = useMealStore((s) => s.getDailyTotals);
 
-  // If store is empty, fall back to initial mock meals for demonstration
-  const displayMeals = meals.length === 0 ? MOCK_INITIAL_MEALS : meals;
-  
-  // Totals calculations
   const totals = meals.length === 0 
-    ? {
-        calories: MOCK_INITIAL_MEALS.reduce((sum, m) => sum + m.calories, 0),
-        protein: MOCK_INITIAL_MEALS.reduce((sum, m) => sum + m.protein, 0),
-        carbs: MOCK_INITIAL_MEALS.reduce((sum, m) => sum + m.carbs, 0),
-        fat: MOCK_INITIAL_MEALS.reduce((sum, m) => sum + m.fat, 0),
-      }
+    ? { calories: 1042, protein: 68, carbs: 118, fat: 30 } 
     : getDailyTotals();
 
-  // Streak calculations
+  const displayMeals = meals.length === 0 
+    ? [
+        { id: "1", name: "Oats & Banana Bowl", calories: 380, protein: 12, carbs: 68, fat: 6, loggedAt: new Date(Date.now() - 3600000 * 4).toISOString() },
+        { id: "2", name: "Grilled Salmon Bowl", calories: 542, protein: 38, carbs: 41, fat: 22, loggedAt: new Date(Date.now() - 3600000 * 2).toISOString() },
+        { id: "3", name: "Greek Yogurt", calories: 120, protein: 18, carbs: 9, fat: 2, loggedAt: new Date().toISOString() },
+      ]
+    : meals;
+
   const dates = meals.map((m) => m.loggedAt);
   const streakResult = calculateStreaks(dates);
   const currentStreak = meals.length === 0 ? 14 : streakResult.current;
 
-  // AI Coach recommendation
   const coachTip = getCoachRecommendation({
     protein: { consumed: totals.protein, goal: GOAL.protein },
     carbs: { consumed: totals.carbs, goal: GOAL.carbs },
     fat: { consumed: totals.fat, goal: GOAL.fat },
   });
 
-  // Time-aware greeting
   const [greeting, setGreeting] = useState("Good morning");
   const [formattedDate, setFormattedDate] = useState("");
 
   useEffect(() => {
     const hrs = new Date().getHours();
-    if (hrs < 12) setGreeting("Good morning");
-    else if (hrs < 18) setGreeting("Good afternoon");
-    else setGreeting("Good evening");
+    if (hrs < 12) setGreeting("Good Morning");
+    else if (hrs < 18) setGreeting("Good Afternoon");
+    else setGreeting("Good Evening");
 
-    // Format current date: Sunday, May 31
     const options: Intl.DateTimeFormatOptions = { weekday: "long", month: "short", day: "numeric" };
     setFormattedDate(new Date().toLocaleDateString("en-US", options));
   }, [meals]);
 
-  // ─── Animations ──────────────────────────────────────────────────────────
-  const ringAnim = useRef(new Animated.Value(0)).current;
+  // Animations
+  const mainRingAnim = useRef(new Animated.Value(0)).current;
+  const pRingAnim = useRef(new Animated.Value(0)).current;
+  const cRingAnim = useRef(new Animated.Value(0)).current;
+  const fRingAnim = useRef(new Animated.Value(0)).current;
+  
+  const meshAnim1 = useRef(new Animated.Value(0)).current;
+  const meshAnim2 = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const listSlideAnim = useRef(new Animated.Value(30)).current;
-  const listFadeAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(25)).current;
 
-  const calPct = totals.calories > 0 ? totals.calories / GOAL.calories : 0;
-  const ringColor = calPct < 0.8 ? "#34d399" : calPct <= 1.0 ? "#facc15" : "#ef4444";
+  const calPct = Math.min(1.2, totals.calories / GOAL.calories);
+  const pPct = Math.min(1, totals.protein / GOAL.protein);
+  const cPct = Math.min(1, totals.carbs / GOAL.carbs);
+  const fPct = Math.min(1, totals.fat / GOAL.fat);
+
+  const ringColor = calPct < 0.8 ? "#10b981" : calPct <= 1.0 ? "#f59e0b" : "#ef4444";
 
   useEffect(() => {
-    // Ring fill animation on mount/update
     Animated.parallel([
-      Animated.timing(ringAnim, {
-        toValue: calPct,
-        duration: 1200,
-        useNativeDriver: false,
-      }),
-      // Entrance animation for content
-      Animated.timing(listFadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-      Animated.timing(listSlideAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
+      Animated.timing(mainRingAnim, { toValue: calPct, duration: 1400, useNativeDriver: false }),
+      Animated.timing(pRingAnim, { toValue: pPct, duration: 1200, useNativeDriver: false }),
+      Animated.timing(cRingAnim, { toValue: cPct, duration: 1200, useNativeDriver: false }),
+      Animated.timing(fRingAnim, { toValue: fPct, duration: 1200, useNativeDriver: false }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 800, useNativeDriver: true }),
     ]).start();
-  }, [calPct]);
 
-  useEffect(() => {
-    // Continuous pulsing animation for CTA button
-    const pulse = Animated.loop(
+    // Pulse loops
+    Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.08, duration: 900, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1.05, duration: 1000, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
       ])
-    );
-    pulse.start();
-    return () => pulse.stop();
-  }, []);
+    ).start();
 
-  const size = 180;
-  const strokeWidth = 14;
-  const r = (size - strokeWidth) / 2;
-  const circ = 2 * Math.PI * r;
+    // Mesh backgrounds loops
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(meshAnim1, { toValue: 1, duration: 8000, useNativeDriver: true }),
+        Animated.timing(meshAnim1, { toValue: 0, duration: 8000, useNativeDriver: true }),
+      ])
+    ).start();
+    
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(meshAnim2, { toValue: 1, duration: 6000, useNativeDriver: true }),
+        Animated.timing(meshAnim2, { toValue: 0, duration: 6000, useNativeDriver: true }),
+      ])
+    ).start();
+  }, [calPct, pPct, cPct, fPct]);
 
-  const ringOffset = ringAnim.interpolate({
-    inputRange: [0, Math.max(1, calPct)],
-    outputRange: [circ, circ * (1 - Math.min(1, calPct))],
+  // Mesh translations
+  const meshTranslateX1 = meshAnim1.interpolate({ inputRange: [0, 1], outputRange: [-20, 50] });
+  const meshTranslateY1 = meshAnim1.interpolate({ inputRange: [0, 1], outputRange: [-30, 20] });
+  const meshTranslateX2 = meshAnim2.interpolate({ inputRange: [0, 1], outputRange: [40, -30] });
+  const meshTranslateY2 = meshAnim2.interpolate({ inputRange: [0, 1], outputRange: [10, -40] });
+
+  // Ring Svg Calculations
+  const mainSize = 200;
+  const mainStroke = 16;
+  const mainR = (mainSize - mainStroke) / 2;
+  const mainCirc = 2 * Math.PI * mainR;
+  const mainOffset = mainRingAnim.interpolate({
+    inputRange: [0, 1.2],
+    outputRange: [mainCirc, mainCirc * (1 - Math.min(1, calPct))],
   });
+
+  const miniSize = 54;
+  const miniStroke = 6;
+  const miniR = (miniSize - miniStroke) / 2;
+  const miniCirc = 2 * Math.PI * miniR;
+
+  const renderMiniRing = (anim: Animated.Value, pct: number, color: string, label: string, val: string, goal: string) => {
+    const offset = anim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [miniCirc, miniCirc * (1 - pct)],
+    });
+    return (
+      <View style={styles.miniMacroCard}>
+        <View style={{ width: miniSize, height: miniSize, position: "relative", marginBottom: 10 }}>
+          <Svg width={miniSize} height={miniSize}>
+            <Circle cx={miniSize / 2} cy={miniSize / 2} r={miniR} stroke="rgba(255,255,255,0.04)" strokeWidth={miniStroke} fill="none" />
+            <AnimatedCircle
+              cx={miniSize / 2}
+              cy={miniSize / 2}
+              r={miniR}
+              stroke={color}
+              strokeWidth={miniStroke}
+              fill="none"
+              strokeDasharray={miniCirc}
+              strokeDashoffset={offset}
+              strokeLinecap="round"
+              rotation="-90"
+              origin={`${miniSize / 2}, ${miniSize / 2}`}
+            />
+          </Svg>
+          <View style={styles.miniRingLabelBox}>
+            <Text style={[styles.miniRingPctText, { color }]}>{Math.round(pct * 100)}%</Text>
+          </View>
+        </View>
+        <Text style={styles.miniRingLabel}>{label}</Text>
+        <Text style={styles.miniRingVal}>{val}</Text>
+        <Text style={styles.miniRingGoal}>/ {goal}</Text>
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.screen}>
       <StatusBar barStyle="light-content" />
+
+      {/* Futuristic Background Mesh */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Animated.View
+          style={[
+            styles.meshBlob,
+            {
+              backgroundColor: "#7c3aed",
+              opacity: 0.15,
+              width: 320,
+              height: 320,
+              borderRadius: 160,
+              transform: [{ translateX: meshTranslateX1 }, { translateY: meshTranslateY1 }],
+              top: -80,
+              right: -80,
+            },
+          ]}
+        />
+        <Animated.View
+          style={[
+            styles.meshBlob,
+            {
+              backgroundColor: "#2563eb",
+              opacity: 0.12,
+              width: 280,
+              height: 280,
+              borderRadius: 140,
+              transform: [{ translateX: meshTranslateX2 }, { translateY: meshTranslateY2 }],
+              top: 220,
+              left: -100,
+            },
+          ]}
+        />
+      </View>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
       >
-        {/* Header */}
-        <View style={styles.header}>
+        {/* HERO HEADER */}
+        <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
           <View>
-            <Text style={styles.headerSubtitle}>{formattedDate}</Text>
-            <Text style={styles.headerTitle}>{greeting}, Madhav 👋</Text>
+            <Text style={styles.dateLabel}>{formattedDate}</Text>
+            <Text style={styles.greetingText}>{greeting}, Madhav</Text>
           </View>
-          <Image
-            source={{ uri: "https://i.pravatar.cc/100?img=33" }}
-            style={styles.avatar}
-          />
-        </View>
-
-        {/* Dynamic Calorie Progress Ring */}
-        <View style={styles.ringCard}>
-          <View style={{ width: size, height: size, alignSelf: "center", position: "relative" }}>
-            <Svg width={size} height={size}>
-              <Circle
-                cx={size / 2}
-                cy={size / 2}
-                r={r}
-                stroke="rgba(255, 255, 255, 0.05)"
-                strokeWidth={strokeWidth}
-                fill="none"
-              />
-              <AnimatedCircle
-                cx={size / 2}
-                cy={size / 2}
-                r={r}
-                stroke={ringColor}
-                strokeWidth={strokeWidth}
-                fill="none"
-                strokeDasharray={circ}
-                strokeDashoffset={ringOffset}
-                strokeLinecap="round"
-                rotation="-90"
-                origin={`${size / 2}, ${size / 2}`}
-              />
-            </Svg>
-            <View style={styles.ringLabelContainer}>
-              <Text style={styles.caloriesCount}>{totals.calories.toLocaleString()}</Text>
-              <Text style={styles.caloriesGoal}>/ {GOAL.calories.toLocaleString()} kcal</Text>
-              <Text style={[styles.caloriesRemaining, { color: ringColor }]}>
-                {totals.calories >= GOAL.calories 
-                  ? "Goal Exceeded" 
-                  : `${(GOAL.calories - totals.calories).toLocaleString()} remaining`}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Macros Badges Row */}
-        <View style={styles.macrosRow}>
-          {[
-            { label: "Protein", color: "#3b82f6", consumed: totals.protein, target: GOAL.protein },
-            { label: "Carbs", color: "#34d399", consumed: totals.carbs, target: GOAL.carbs },
-            { label: "Fat", color: "#f472b6", consumed: totals.fat, target: GOAL.fat },
-          ].map((macro) => {
-            const pct = Math.min(1, macro.consumed / macro.target);
-            return (
-              <View key={macro.label} style={styles.macroPill}>
-                <View style={styles.macroPillHeader}>
-                  <Text style={styles.macroLabel}>{macro.label}</Text>
-                  <Text style={styles.macroValue}>
-                    {macro.consumed}g / {macro.target}g
-                  </Text>
-                </View>
-                <View style={styles.macroTrack}>
-                  <View style={[styles.macroBar, { width: `${pct * 100}%`, backgroundColor: macro.color }]} />
-                </View>
-              </View>
-            );
-          })}
-        </View>
-
-        {/* AI Camera CTA Button */}
-        <View style={styles.cameraContainer}>
-          <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-            <TouchableOpacity
-              style={styles.cameraBtn}
-              activeOpacity={0.88}
-              onPress={() => navigation.navigate("Camera")}
-            >
-              <Text style={styles.cameraBtnText}>Scan Meal 📷</Text>
+          <View style={styles.headerRight}>
+            <TouchableOpacity style={styles.settingsBtn} activeOpacity={0.7} onPress={() => navigation.navigate("Tabs", { screen: "Profile" } as any)}>
+              <Text style={{ fontSize: 18 }}>⚙️</Text>
             </TouchableOpacity>
-          </Animated.View>
-        </View>
-
-        {/* Today's Meals Section */}
-        <Animated.View style={{ opacity: listFadeAnim, transform: [{ translateY: listSlideAnim }] }}>
-          <Text style={styles.sectionTitle}>Today's Meals</Text>
-          {displayMeals.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyText}>No meals logged yet. Tap Scan Meal to start!</Text>
-            </View>
-          ) : (
-            displayMeals.map((meal) => {
-              const time = meal.loggedAt ? new Date(meal.loggedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Just now";
-              return (
-                <View key={meal.id} style={styles.mealCard}>
-                  <View style={styles.mealLeft}>
-                    <View style={styles.mealIcon}>
-                      <Text style={{ fontSize: 18 }}>🍽️</Text>
-                    </View>
-                    <View>
-                      <Text style={styles.mealName} numberOfLines={1}>{meal.name}</Text>
-                      <Text style={styles.mealDetails}>
-                        P: {meal.protein}g · C: {meal.carbs}g · F: {meal.fat}g
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.mealRight}>
-                    <Text style={styles.mealCal}>{meal.calories} kcal</Text>
-                    <Text style={styles.mealTime}>{time}</Text>
-                    
-                    {/* Delete button (wired directly instead of swipe for reliability) */}
-                    <TouchableOpacity
-                      onPress={() => deleteMeal(meal.id)}
-                      style={styles.deleteBtn}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    >
-                      <Text style={styles.deleteText}>✕</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              );
-            })
-          )}
-
-          {/* Streak Badge */}
-          <TouchableOpacity
-            style={styles.streakBadge}
-            activeOpacity={0.7}
-            onPress={() => navigation.navigate("Tabs", { screen: "History" } as any)}
-          >
-            <Text style={styles.streakText}>🔥 {currentStreak} day streak</Text>
-            <Text style={styles.streakArrow}>›</Text>
-          </TouchableOpacity>
-
-          {/* AI Coach recommendation tip card */}
-          <View style={styles.coachCard}>
-            <Text style={styles.coachTitle}>💡 AI Nutrition Coach</Text>
-            <Text style={styles.coachText}>{coachTip}</Text>
+            <Image
+              source={{ uri: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop" }}
+              style={styles.avatar}
+            />
           </View>
         </Animated.View>
 
-        <View style={{ height: 40 }} />
+        {/* CALORIE PROGRESS CARD */}
+        <Animated.View style={[styles.calorieCard, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+          <View style={styles.calorieCardLayout}>
+            {/* Svg Circle Container */}
+            <View style={{ width: mainSize, height: mainSize, position: "relative" }}>
+              <Svg width={mainSize} height={mainSize}>
+                <Defs>
+                  <LinearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+                    <Stop offset="0%" stopColor={ringColor} stopOpacity={0.8} />
+                    <Stop offset="100%" stopColor="#c084fc" stopOpacity={1} />
+                  </LinearGradient>
+                </Defs>
+                <Circle cx={mainSize / 2} cy={mainSize / 2} r={mainR} stroke="rgba(255,255,255,0.03)" strokeWidth={mainStroke} fill="none" />
+                <AnimatedCircle
+                  cx={mainSize / 2}
+                  cy={mainSize / 2}
+                  r={mainR}
+                  stroke="url(#ringGrad)"
+                  strokeWidth={mainStroke}
+                  fill="none"
+                  strokeDasharray={mainCirc}
+                  strokeDashoffset={mainOffset}
+                  strokeLinecap="round"
+                  rotation="-90"
+                  origin={`${mainSize / 2}, ${mainSize / 2}`}
+                />
+              </Svg>
+              <View style={styles.ringLabelContainer}>
+                <Text style={styles.caloriesNumber}>{totals.calories.toLocaleString()}</Text>
+                <Text style={styles.caloriesTarget}>of {GOAL.calories.toLocaleString()} kcal</Text>
+                <View style={[styles.pillBadge, { backgroundColor: "rgba(255,255,255,0.06)", marginTop: 10 }]}>
+                  <Text style={styles.percentText}>{Math.round((totals.calories / GOAL.calories) * 100)}% Active</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Side Calories Details */}
+            <View style={styles.calorieDetails}>
+              <View>
+                <Text style={styles.detailLabel}>REMAINING</Text>
+                <Text style={[styles.detailValue, { color: ringColor, fontSize: 32 }]}>
+                  {Math.max(0, GOAL.calories - totals.calories).toLocaleString()}
+                </Text>
+                <Text style={styles.detailSub}>kcal left</Text>
+              </View>
+              <View style={styles.detailDivider} />
+              <View>
+                <Text style={styles.detailLabel}>METABOLIC STATUS</Text>
+                <Text style={[styles.detailValue, { color: "#c084fc" }]}>Optimal</Text>
+                <Text style={styles.detailSub}>Fat-burn active</Text>
+              </View>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* QUICK AI ACTIONS */}
+        <Animated.View style={[styles.actionsContainer, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+          <TouchableOpacity style={styles.actionItem} activeOpacity={0.8} onPress={() => {}}>
+            <Text style={styles.actionIcon}>🎙️</Text>
+            <Text style={styles.actionLabel}>Voice Log</Text>
+          </TouchableOpacity>
+          <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+            <TouchableOpacity
+              style={styles.actionPrimary}
+              activeOpacity={0.9}
+              onPress={() => navigation.navigate("Camera")}
+            >
+              <Text style={styles.actionPrimaryIcon}>📷</Text>
+              <Text style={styles.actionPrimaryLabel}>Scan Meal</Text>
+            </TouchableOpacity>
+          </Animated.View>
+          <TouchableOpacity style={styles.actionItem} activeOpacity={0.8} onPress={() => {}}>
+            <Text style={styles.actionIcon}>🏷️</Text>
+            <Text style={styles.actionLabel}>Barcode</Text>
+          </TouchableOpacity>
+        </Animated.View>
+
+        {/* MACRO TRACKER */}
+        <Animated.View style={[styles.sectionHeader, { opacity: fadeAnim }]}>
+          <Text style={styles.sectionTitle}>Macronutrients</Text>
+        </Animated.View>
+        <Animated.View style={[styles.macrosContainer, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+          {renderMiniRing(pRingAnim, pPct, "#60a5fa", "Protein", `${totals.protein}g`, `${GOAL.protein}g`)}
+          {renderMiniRing(cRingAnim, cPct, "#34d399", "Carbs", `${totals.carbs}g`, `${GOAL.carbs}g`)}
+          {renderMiniRing(fRingAnim, fPct, "#f472b6", "Fat", `${totals.fat}g`, `${GOAL.fat}g`)}
+        </Animated.View>
+
+        {/* WEEKLY INSIGHTS CHART */}
+        <Animated.View style={[styles.sectionHeader, { opacity: fadeAnim }]}>
+          <Text style={styles.sectionTitle}>Weekly Insights</Text>
+          <Text style={styles.trendArrow}>Average: 1,842 kcal</Text>
+        </Animated.View>
+        <Animated.View style={[styles.insightsCard, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+          <View style={styles.chartContainer}>
+            {WEEKLY_DATA.map((item, idx) => {
+              const maxKcal = Math.max(...WEEKLY_DATA.map(d => d.kcal), 2500);
+              const barHeight = (item.kcal / maxKcal) * 80;
+              const isToday = idx === new Date().getDay() - 1;
+              return (
+                <View key={idx} style={styles.chartCol}>
+                  <View style={styles.chartBarTrack}>
+                    <View style={[styles.chartBarFill, { height: barHeight, backgroundColor: isToday ? "#c084fc" : "rgba(255,255,255,0.15)" }]} />
+                  </View>
+                  <Text style={[styles.chartLabel, isToday && { color: "#c084fc", fontWeight: "800" }]}>{item.day}</Text>
+                </View>
+              );
+            })}
+          </View>
+          <View style={styles.insightsStats}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.insightStatTitle}>Weekly consistency is up 12%</Text>
+              <Text style={styles.insightStatSub}>You logged meals on 6 out of 7 days this week.</Text>
+            </View>
+            <View style={[styles.pillBadge, { backgroundColor: "rgba(52, 211, 153, 0.1)" }]}>
+              <Text style={{ color: "#34d399", fontSize: 11, fontWeight: "700" }}>✓ Steady</Text>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* TODAY'S MEALS */}
+        <Animated.View style={[styles.sectionHeader, { opacity: fadeAnim }]}>
+          <Text style={styles.sectionTitle}>Today's Meals</Text>
+          <TouchableOpacity style={styles.streakBadge} activeOpacity={0.7} onPress={() => navigation.navigate("Tabs", { screen: "History" } as any)}>
+            <Text style={styles.streakText}>🔥 {currentStreak} day streak</Text>
+          </TouchableOpacity>
+        </Animated.View>
+        <Animated.View style={[styles.mealsList, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+          {displayMeals.map((meal) => {
+            const time = meal.loggedAt ? new Date(meal.loggedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Just now";
+            return (
+              <View key={meal.id} style={styles.mealCard}>
+                <View style={styles.mealIconBox}>
+                  <Text style={{ fontSize: 20 }}>🍽️</Text>
+                </View>
+                <View style={{ flex: 1, paddingHorizontal: 12 }}>
+                  <Text style={styles.mealName} numberOfLines={1}>{meal.name}</Text>
+                  <Text style={styles.mealTimeText}>{time}</Text>
+                  {/* Macro mini bars */}
+                  <View style={styles.macroMiniRow}>
+                    <View style={[styles.macroMiniBar, { width: "30%", backgroundColor: "#60a5fa" }]} />
+                    <View style={[styles.macroMiniBar, { width: "45%", backgroundColor: "#34d399" }]} />
+                    <View style={[styles.macroMiniBar, { width: "15%", backgroundColor: "#f472b6" }]} />
+                  </View>
+                </View>
+                <View style={{ alignItems: "flex-end", marginRight: 8 }}>
+                  <Text style={styles.mealCalText}>{meal.calories}</Text>
+                  <Text style={styles.mealCalUnit}>kcal</Text>
+                </View>
+                <TouchableOpacity style={styles.trashBtn} activeOpacity={0.7} onPress={() => deleteMeal(meal.id)}>
+                  <Text style={{ fontSize: 15, color: "#ef4444" }}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            );
+          })}
+        </Animated.View>
+
+        {/* AI COACH PANEL */}
+        <Animated.View style={[styles.coachCard, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+          <View style={styles.coachHeader}>
+            <View style={styles.coachAvatarGlow}>
+              <Text style={{ fontSize: 16 }}>🤖</Text>
+            </View>
+            <Text style={styles.coachTitle}>AI Health Coach</Text>
+          </View>
+          <Text style={styles.coachRecommendationText}>{coachTip}</Text>
+        </Animated.View>
+
+        <View style={{ height: 100 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -286,45 +420,76 @@ export default function HomeScreen() {
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#080810" },
-  scroll: { paddingHorizontal: 16, paddingTop: 40, paddingBottom: 100 },
+  screen: { flex: 1, backgroundColor: "#05050a" },
+  scroll: { paddingHorizontal: 16, paddingTop: 30 },
 
+  meshBlob: {
+    position: "absolute",
+    filter: "blur(60px)",
+  },
+
+  // Header
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 20,
   },
-  headerSubtitle: {
+  dateLabel: {
     fontSize: 12,
-    color: "#4b5563",
-    fontWeight: "600",
+    color: "rgba(255,255,255,0.4)",
+    fontWeight: "700",
     textTransform: "uppercase",
-    letterSpacing: 1.5,
+    letterSpacing: 2,
   },
-  headerTitle: {
-    fontSize: 24,
+  greetingText: {
+    fontSize: 28,
     color: "#fff",
-    fontWeight: "800",
+    fontWeight: "900",
+    letterSpacing: -0.5,
     marginTop: 4,
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  settingsBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   avatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
     borderWidth: 1.5,
-    borderColor: "#1f1f35",
+    borderColor: "#7c3aed",
   },
 
-  // Ring Card
-  ringCard: {
-    backgroundColor: "#0f0f1a",
+  // Calorie Card
+  calorieCard: {
+    backgroundColor: "#0d0d18",
     borderRadius: 24,
-    padding: 24,
-    marginBottom: 16,
+    padding: 20,
     borderWidth: 1,
-    borderColor: "#1f1f35",
+    borderColor: "rgba(255, 255, 255, 0.06)",
+    marginBottom: 20,
+    shadowColor: "#7c3aed",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  calorieCardLayout: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-around",
   },
   ringLabelContainer: {
     position: "absolute",
@@ -335,212 +500,337 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  caloriesCount: {
-    fontSize: 36,
+  caloriesNumber: {
+    fontSize: 40,
     fontWeight: "900",
     color: "#fff",
     letterSpacing: -1,
   },
-  caloriesGoal: {
-    fontSize: 12,
+  caloriesTarget: {
+    fontSize: 11,
     color: "rgba(255, 255, 255, 0.4)",
     fontWeight: "600",
+  },
+  percentText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  pillBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+    alignSelf: "center",
+  },
+  calorieDetails: {
+    flex: 1,
+    paddingLeft: 24,
+    gap: 16,
+  },
+  detailLabel: {
+    fontSize: 9,
+    color: "rgba(255, 255, 255, 0.4)",
+    fontWeight: "800",
+    letterSpacing: 1.5,
+  },
+  detailValue: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#fff",
     marginTop: 2,
   },
-  caloriesRemaining: {
+  detailSub: {
     fontSize: 10,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-    marginTop: 8,
+    color: "rgba(255, 255, 255, 0.35)",
+    fontWeight: "500",
+  },
+  detailDivider: {
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.06)",
   },
 
-  // Macros pills
-  macrosRow: {
-    gap: 10,
-    marginBottom: 20,
-  },
-  macroPill: {
-    backgroundColor: "#0f0f1a",
-    borderRadius: 16,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#1f1f35",
-  },
-  macroPillHeader: {
+  // Actions
+  actionsContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 6,
-  },
-  macroLabel: {
-    fontSize: 13,
-    color: "rgba(255, 255, 255, 0.5)",
-    fontWeight: "600",
-  },
-  macroValue: {
-    fontSize: 13,
-    color: "#fff",
-    fontWeight: "700",
-  },
-  macroTrack: {
-    height: 5,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
-    borderRadius: 3,
-    overflow: "hidden",
-  },
-  macroBar: {
-    height: "100%",
-    borderRadius: 3,
-  },
-
-  // CTA
-  cameraContainer: {
     alignItems: "center",
     marginBottom: 24,
   },
-  cameraBtn: {
+  actionItem: {
+    width: (SCREEN_WIDTH - 32) * 0.26,
+    aspectRatio: 1.25,
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.05)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  actionIcon: {
+    fontSize: 20,
+  },
+  actionLabel: {
+    fontSize: 11,
+    color: "rgba(255,255,255,0.5)",
+    fontWeight: "700",
+  },
+  actionPrimary: {
+    width: (SCREEN_WIDTH - 32) * 0.38,
+    aspectRatio: 1.5,
     backgroundColor: "#7c3aed",
-    paddingHorizontal: 36,
-    paddingVertical: 15,
-    borderRadius: 50,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
     shadowColor: "#7c3aed",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.5,
-    shadowRadius: 15,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
     elevation: 8,
   },
-  cameraBtnText: {
+  actionPrimaryIcon: {
+    fontSize: 22,
+  },
+  actionPrimaryLabel: {
+    fontSize: 14,
     color: "#fff",
-    fontSize: 16,
-    fontWeight: "800",
+    fontWeight: "900",
     letterSpacing: 0.5,
   },
 
-  // Meals List
-  sectionTitle: {
-    fontSize: 12,
-    color: "#4b5563",
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 2,
-    marginBottom: 12,
-  },
-  emptyCard: {
-    backgroundColor: "#0f0f1a",
-    borderRadius: 20,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: "#1f1f35",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  emptyText: {
-    color: "rgba(255, 255, 255, 0.4)",
-    fontSize: 13,
-    textAlign: "center",
-  },
-  mealCard: {
+  // Section Headers
+  sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#0f0f1a",
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "#1f1f35",
+    marginBottom: 12,
+    marginTop: 10,
   },
-  mealLeft: {
+  sectionTitle: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.4)",
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 2,
+  },
+  trendArrow: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.5)",
+    fontWeight: "600",
+  },
+
+  // Macros
+  macrosContainer: {
     flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    marginRight: 10,
+    justifyContent: "space-between",
+    marginBottom: 24,
   },
-  mealIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.04)",
+  miniMacroCard: {
+    width: (SCREEN_WIDTH - 32 - 20) / 3,
+    backgroundColor: "#0d0d18",
+    borderRadius: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.05)",
+  },
+  miniRingLabelBox: {
+    position: "absolute",
+    inset: 0,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
   },
-  mealName: {
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: "700",
+  miniRingPctText: {
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  miniRingLabel: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.45)",
+    fontWeight: "600",
     marginBottom: 4,
   },
-  mealDetails: {
-    color: "rgba(255, 255, 255, 0.4)",
-    fontSize: 12,
-  },
-  mealRight: {
-    flexDirection: "row",
-    gap: 12,
-    alignItems: "center",
-  },
-  mealCal: {
+  miniRingVal: {
+    fontSize: 14,
     color: "#fff",
-    fontSize: 15,
     fontWeight: "800",
   },
-  mealTime: {
-    color: "rgba(255, 255, 255, 0.3)",
-    fontSize: 10,
+  miniRingGoal: {
+    fontSize: 9,
+    color: "rgba(255,255,255,0.3)",
+    fontWeight: "600",
     marginTop: 2,
   },
-  deleteBtn: {
-    padding: 4,
+
+  // Weekly insights
+  insightsCard: {
+    backgroundColor: "#0d0d18",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.05)",
+    padding: 20,
+    marginBottom: 24,
   },
-  deleteText: {
-    color: "#ef4444",
-    fontSize: 14,
-    fontWeight: "bold",
+  chartContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    height: 100,
+    marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.06)",
+    paddingBottom: 4,
+  },
+  chartCol: {
+    alignItems: "center",
+    width: (SCREEN_WIDTH - 72) / 7,
+  },
+  chartBarTrack: {
+    height: 80,
+    width: 6,
+    backgroundColor: "rgba(255,255,255,0.03)",
+    borderRadius: 3,
+    justifyContent: "flex-end",
+  },
+  chartBarFill: {
+    width: "100%",
+    borderRadius: 3,
+  },
+  chartLabel: {
+    fontSize: 10,
+    color: "rgba(255,255,255,0.35)",
+    marginTop: 6,
+    fontWeight: "600",
+  },
+  insightsStats: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  insightStatTitle: {
+    fontSize: 13,
+    color: "#fff",
+    fontWeight: "700",
+  },
+  insightStatSub: {
+    fontSize: 11,
+    color: "rgba(255,255,255,0.4)",
+    marginTop: 2,
   },
 
   // Streak
   streakBadge: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "#161301",
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    backgroundColor: "rgba(250, 204, 21, 0.1)",
     borderWidth: 1,
-    borderColor: "#facc1530",
-    marginBottom: 16,
+    borderColor: "rgba(250, 204, 21, 0.2)",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
   },
   streakText: {
-    color: "#fbbf24",
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  streakArrow: {
-    color: "#fbbf24",
-    fontSize: 18,
-    fontWeight: "bold",
+    color: "#facc15",
+    fontSize: 11,
+    fontWeight: "800",
   },
 
-  // AI Coach Card
-  coachCard: {
-    backgroundColor: "#0d0d1f",
+  // Meals List
+  mealsList: {
+    gap: 10,
+    marginBottom: 24,
+  },
+  mealCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#0d0d18",
     borderRadius: 20,
-    padding: 16,
+    padding: 14,
     borderWidth: 1,
-    borderColor: "#1f1f35",
+    borderColor: "rgba(255, 255, 255, 0.05)",
+  },
+  mealIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.03)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  mealName: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  mealTimeText: {
+    color: "rgba(255,255,255,0.3)",
+    fontSize: 11,
+    marginTop: 2,
+  },
+  macroMiniRow: {
+    flexDirection: "row",
+    gap: 3,
+    marginTop: 6,
+    height: 3,
+    width: 60,
+    borderRadius: 1.5,
+    overflow: "hidden",
+  },
+  macroMiniBar: {
+    height: "100%",
+  },
+  mealCalText: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#fff",
+  },
+  mealCalUnit: {
+    fontSize: 9,
+    color: "rgba(255,255,255,0.4)",
+    fontWeight: "600",
+  },
+  trashBtn: {
+    padding: 10,
+    marginLeft: 8,
+  },
+
+  // Coach Card
+  coachCard: {
+    backgroundColor: "rgba(124, 58, 237, 0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(124, 58, 237, 0.2)",
+    borderRadius: 24,
+    padding: 18,
+    shadowColor: "#7c3aed",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+  coachHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 8,
+  },
+  coachAvatarGlow: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(124, 58, 237, 0.25)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   coachTitle: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#60a5fa",
-    marginBottom: 6,
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#c084fc",
+    letterSpacing: 0.5,
   },
-  coachText: {
+  coachRecommendationText: {
     fontSize: 13,
-    color: "rgba(255, 255, 255, 0.7)",
-    lineHeight: 19,
+    color: "rgba(255,255,255,0.75)",
+    lineHeight: 20,
+    fontWeight: "500",
   },
 });
