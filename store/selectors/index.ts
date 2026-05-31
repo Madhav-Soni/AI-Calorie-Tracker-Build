@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useAppStore } from "../index";
+import { useAppStore } from "../store";
 import type { DailyLog, WeeklyStats, Macros } from "../types";
 import {
   getMealsForDate,

@@ -8,8 +8,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "./AppNavigator";
-import { useAnalyzeFood } from "../analyzeFoodService";
-import type { FoodItem } from "../analyzeFoodService";
+import { useAnalyzeFood } from "../hooks/useAnalyzeFood";
+import type { FoodItem } from "../services/foodAnalysis";
 import { useMealStore } from "../useMealStore";
 
 const { width } = Dimensions.get("window");

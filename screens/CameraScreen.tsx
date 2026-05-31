@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "./AppNavigator";
-import { useAnalyzeFood } from "../analyzeFoodService";
+import { useAnalyzeFood } from "../hooks/useAnalyzeFood";
 
 const { width, height } = Dimensions.get("window");
 
