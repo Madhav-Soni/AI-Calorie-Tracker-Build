@@ -7,7 +7,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import type { RootStackParamList } from "./AppNavigator";
+import type { RootStackParamList } from "../App";
 import { useAnalyzeFood } from "../hooks/useAnalyzeFood";
 import type { FoodItem } from "../services/foodAnalysis";
 import { useMealStore } from "../useMealStore";
