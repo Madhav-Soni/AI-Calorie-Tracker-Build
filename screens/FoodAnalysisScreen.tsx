@@ -21,8 +21,10 @@ export default function FoodAnalysisScreen() {
   const route = useRoute<RouteProps>();
   const { imageUri, analysisResult } = route.params || {};
   const insets = useSafeAreaInsets();
-  const { state, analyze, setState } = useAnalyzeFood();
+  const { state, analyze, hydrate } = useAnalyzeFood();
   const addMeal = useMealStore((s) => s.addMeal);
+
+  const isAnalyzing = state.status === "uploading" || state.status === "analyzing";
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(40)).current;
@@ -30,14 +32,14 @@ export default function FoodAnalysisScreen() {
 
   useEffect(() => {
     if (analysisResult) {
-      setState({ status: "success", data: analysisResult });
+      hydrate(analysisResult);
     } else if (imageUri) {
       analyze(imageUri);
     }
   }, [analysisResult, imageUri]);
 
   useEffect(() => {
-    if (state.status === "loading") {
+    if (isAnalyzing) {
       Animated.loop(
         Animated.timing(spinAnim, { toValue: 1, duration: 1200, useNativeDriver: true })
       ).start();
@@ -76,7 +78,7 @@ export default function FoodAnalysisScreen() {
         >
           <Text style={styles.backBtnText}>‹</Text>
         </TouchableOpacity>
-        {state.status === "loading" && (
+        {isAnalyzing && (
           <View style={styles.scanOverlay}>
             <Animated.View style={[styles.scanRing, { transform: [{ rotate: spin }] }]} />
             <Text style={styles.scanText}>Analysing...</Text>
@@ -90,7 +92,7 @@ export default function FoodAnalysisScreen() {
         contentContainerStyle={[styles.sheetContent, { paddingBottom: insets.bottom + 32 }]}
         showsVerticalScrollIndicator={false}
       >
-        {state.status === "loading" && (
+        {isAnalyzing && (
           <View style={styles.loadingBox}>
             <ActivityIndicator color="#fff" size="small" style={{ marginBottom: 12 }} />
             <Text style={styles.loadingTitle}>Identifying foods</Text>
@@ -102,79 +104,80 @@ export default function FoodAnalysisScreen() {
           <View style={styles.errorBox}>
             <Text style={styles.errorIcon}>⚠️</Text>
             <Text style={styles.errorTitle}>Analysis failed</Text>
-            <Text style={styles.errorMsg}>{state.message}</Text>
+            <Text style={styles.errorMsg}>{state.error}</Text>
             <TouchableOpacity style={styles.retryBtn} onPress={() => analyze(imageUri)}>
               <Text style={styles.retryBtnText}>Try Again</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {state.status === "success" && (
-          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-            {/* Totals */}
-            <View style={styles.totalsRow}>
-              <View style={styles.totalCard}>
-                <Text style={styles.totalValue}>{state.data.totalCalories}</Text>
-                <Text style={styles.totalLabel}>kcal</Text>
+        {state.status === "success" && state.data && (() => {
+          const data = state.data;
+          return (
+            <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+              {/* Totals */}
+              <View style={styles.totalsRow}>
+                <View style={styles.totalCard}>
+                  <Text style={styles.totalValue}>{data.totalCalories}</Text>
+                  <Text style={styles.totalLabel}>kcal</Text>
+                </View>
+                {(["protein", "carbs", "fat"] as const).map((m) => (
+                  <View key={m} style={styles.macroCard}>
+                    <Text style={[styles.macroValue, { color: macroColor(m) }]}>
+                      {data[`total${m.charAt(0).toUpperCase() + m.slice(1)}` as "totalProtein" | "totalCarbs" | "totalFat"]}g
+                    </Text>
+                    <Text style={styles.macroLabel}>{m}</Text>
+                  </View>
+                ))}
               </View>
-              {(["protein", "carbs", "fat"] as const).map((m) => (
-                <View key={m} style={styles.macroCard}>
-                  <Text style={[styles.macroValue, { color: macroColor(m) }]}>
-                    {state.data[`total${m.charAt(0).toUpperCase() + m.slice(1)}` as "totalProtein" | "totalCarbs" | "totalFat"]}g
-                  </Text>
-                  <Text style={styles.macroLabel}>{m}</Text>
+
+              {/* Food Items */}
+              <Text style={styles.sectionTitle}>Foods Detected</Text>
+              {data.foods.map((item: FoodItem, idx: number) => (
+                <View key={idx} style={styles.foodCard}>
+                  <View style={styles.foodCardTop}>
+                    <View style={styles.foodInfo}>
+                      <Text style={styles.foodName}>{item.name}</Text>
+                      <Text style={styles.foodPortion}>{item.portion}</Text>
+                    </View>
+                    <Text style={styles.foodCalories}>{item.calories} kcal</Text>
+                  </View>
+                  <View style={styles.foodMacros}>
+                    {(["protein", "carbs", "fat"] as const).map((m) => (
+                      <View key={m} style={styles.foodMacroItem}>
+                        <Text style={[styles.foodMacroVal, { color: macroColor(m) }]}>
+                          {item[m]}g
+                        </Text>
+                        <Text style={styles.foodMacroLabel}>{m}</Text>
+                      </View>
+                    ))}
+                  </View>
                 </View>
               ))}
-            </View>
 
-            {/* Food Items */}
-            <Text style={styles.sectionTitle}>Foods Detected</Text>
-            {state.data.foods.map((item: FoodItem, idx: number) => (
-              <View key={idx} style={styles.foodCard}>
-                <View style={styles.foodCardTop}>
-                  <View style={styles.foodInfo}>
-                    <Text style={styles.foodName}>{item.name}</Text>
-                    <Text style={styles.foodPortion}>{item.portion}</Text>
-                  </View>
-                  <Text style={styles.foodCalories}>{item.calories} kcal</Text>
-                </View>
-                <View style={styles.foodMacros}>
-                  {(["protein", "carbs", "fat"] as const).map((m) => (
-                    <View key={m} style={styles.foodMacroItem}>
-                      <Text style={[styles.foodMacroVal, { color: macroColor(m) }]}>
-                        {item[m]}g
-                      </Text>
-                      <Text style={styles.foodMacroLabel}>{m}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            ))}
-
-            {/* Log Button */}
-            <TouchableOpacity
-              style={styles.logBtn}
-              onPress={() => {
-                if (state.status === "success") {
-                  const mealNames = state.data.foods.map((f) => f.name).join(", ");
+              {/* Log Button */}
+              <TouchableOpacity
+                style={styles.logBtn}
+                onPress={() => {
+                  const mealNames = data.foods.map((f) => f.name).join(", ");
                   addMeal({
                     name: mealNames || "AI Analyzed Food",
-                    calories: state.data.totalCalories,
-                    protein: state.data.totalProtein,
-                    carbs: state.data.totalCarbs,
-                    fat: state.data.totalFat,
+                    calories: data.totalCalories,
+                    protein: data.totalProtein,
+                    carbs: data.totalCarbs,
+                    fat: data.totalFat,
                   });
                   Alert.alert("Success", "Meal logged to diary successfully!", [
                     { text: "OK", onPress: () => navigation.navigate("FoodDiary" as any) }
                   ]);
-                }
-              }}
-              activeOpacity={0.88}
-            >
-              <Text style={styles.logBtnText}>+ Log to Diary</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
+                }}
+                activeOpacity={0.88}
+              >
+                <Text style={styles.logBtnText}>+ Log to Diary</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          );
+        })()}
       </ScrollView>
     </View>
   );

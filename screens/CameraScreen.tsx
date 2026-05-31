@@ -32,6 +32,7 @@ export default function CameraScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   
   const { state: analyzeState, analyze, reset: resetAnalysis } = useAnalyzeFood();
+  const isAnalyzing = analyzeState.status === "uploading" || analyzeState.status === "analyzing";
 
   const shimmer = useRef(new Animated.Value(0)).current;
   const captureScale = useRef(new Animated.Value(1)).current;
@@ -219,9 +220,9 @@ export default function CameraScreen() {
               style={styles.analyseBtn}
               activeOpacity={0.88}
               onPress={handleAnalyse}
-              disabled={analyzeState.status === "loading"}
+              disabled={isAnalyzing}
             >
-              {analyzeState.status === "loading" ? (
+              {isAnalyzing ? (
                 <ActivityIndicator color="#000" size="small" />
               ) : (
                 <Text style={styles.analyseBtnText}>✦ Analyse Meal</Text>
@@ -231,7 +232,7 @@ export default function CameraScreen() {
             <TouchableOpacity
               style={styles.retakeBtn}
               onPress={retake}
-              disabled={analyzeState.status === "loading"}
+              disabled={isAnalyzing}
             >
               <Text style={styles.retakeBtnText}>Retake</Text>
             </TouchableOpacity>
@@ -240,7 +241,7 @@ export default function CameraScreen() {
       )}
 
       {/* Uploading/Analyzing Premium Loading Overlay */}
-      {analyzeState.status === "loading" && (
+      {isAnalyzing && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color="#fff" />
           <Text style={styles.loadingText}>Uploading to AI Backend...</Text>
