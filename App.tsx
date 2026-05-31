@@ -6,6 +6,8 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 
+import type { AnalysisResult } from "./services/foodAnalysis";
+
 import HomeScreen from "./screens/HomeScreen";
 import HistoryScreen from "./screens/HistoryScreen";
 import ProfileScreen from "./screens/ProfileScreen";
@@ -15,7 +17,7 @@ import FoodAnalysisScreen from "./screens/FoodAnalysisScreen";
 export type RootStackParamList = {
   Tabs: undefined;
   Camera: undefined;
-  FoodAnalysis: { imageUri: string; analysisResult?: any };
+  FoodAnalysis: { imageUri: string; analysisResult?: AnalysisResult };
 };
 
 export type TabParamList = {
@@ -97,13 +99,13 @@ function TabNavigator() {
 export default function App() {
   return (
     <NavigationContainer>
-      <Stack.Navigator id="StackNavigator" screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="Tabs" component={TabNavigator} />
+      <Stack.Navigator id="StackNavigator" screenOptions={{ headerShown: false, animation: "slide_from_bottom" }}>
+        <Stack.Screen name="Tabs" component={TabNavigator} options={{ animation: "none" }} />
         <Stack.Screen name="Camera" component={CameraScreen} />
         <Stack.Screen
           name="FoodAnalysis"
           component={FoodAnalysisScreen}
-          options={{ presentation: "modal" }}
+          options={{ animation: "slide_from_right" }}
         />
       </Stack.Navigator>
     </NavigationContainer>
