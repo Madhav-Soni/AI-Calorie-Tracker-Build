@@ -42,7 +42,7 @@ export default function HomeScreen() {
   const getDailyTotals = useMealStore((s) => s.getDailyTotals);
 
   const totals = meals.length === 0 
-    ? { calories: 1042, protein: 68, carbs: 118, fat: 30 } 
+    ? { calories: 1420, protein: 78, carbs: 142, fat: 38 } 
     : getDailyTotals();
 
   const displayMeals = meals.length === 0 
@@ -93,7 +93,7 @@ export default function HomeScreen() {
   const cPct = Math.min(1, totals.carbs / GOAL.carbs);
   const fPct = Math.min(1, totals.fat / GOAL.fat);
 
-  const ringColor = calPct < 0.8 ? "#10b981" : calPct <= 1.0 ? "#f59e0b" : "#ef4444";
+  const ringColor = calPct < 0.8 ? "#34d399" : calPct <= 1.0 ? "#fbbf24" : "#f87171";
 
   useEffect(() => {
     Animated.parallel([
@@ -229,13 +229,14 @@ export default function HomeScreen() {
       >
         {/* HERO HEADER */}
         <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={styles.dateLabel}>{formattedDate}</Text>
-            <Text style={styles.greetingText}>{greeting}, Madhav</Text>
+            <Text style={styles.greetingText}>{greeting},</Text>
+            <Text style={[styles.greetingText, { fontSize: 24, color: "#7c3aed", marginTop: -4 }]}>Madhav</Text>
           </View>
           <View style={styles.headerRight}>
             <TouchableOpacity style={styles.settingsBtn} activeOpacity={0.7} onPress={() => navigation.navigate("Tabs", { screen: "Profile" } as any)}>
-              <Text style={{ fontSize: 18 }}>⚙️</Text>
+              <Text style={{ fontSize: 16 }}>⚙️</Text>
             </TouchableOpacity>
             <Image
               source={{ uri: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop" }}
@@ -256,7 +257,7 @@ export default function HomeScreen() {
                     <Stop offset="100%" stopColor="#c084fc" stopOpacity={1} />
                   </LinearGradient>
                 </Defs>
-                <Circle cx={mainSize / 2} cy={mainSize / 2} r={mainR} stroke="rgba(255,255,255,0.03)" strokeWidth={mainStroke} fill="none" />
+                <Circle cx={mainSize / 2} cy={mainSize / 2} r={mainR} stroke="rgba(255,255,255,0.05)" strokeWidth={mainStroke} fill="none" />
                 <AnimatedCircle
                   cx={mainSize / 2}
                   cy={mainSize / 2}
@@ -283,17 +284,17 @@ export default function HomeScreen() {
             {/* Side Calories Details */}
             <View style={styles.calorieDetails}>
               <View>
-                <Text style={styles.detailLabel}>REMAINING</Text>
+                <Text style={styles.detailLabel}>Remaining</Text>
                 <Text style={[styles.detailValue, { color: ringColor, fontSize: 32 }]}>
-                  {Math.max(0, GOAL.calories - totals.calories).toLocaleString()}
+                  {Math.max(0, GOAL.calories - totals.calories)}
                 </Text>
                 <Text style={styles.detailSub}>kcal left</Text>
               </View>
               <View style={styles.detailDivider} />
               <View>
-                <Text style={styles.detailLabel}>METABOLIC STATUS</Text>
-                <Text style={[styles.detailValue, { color: "#c084fc" }]}>Optimal</Text>
-                <Text style={styles.detailSub}>Fat-burn active</Text>
+                <Text style={styles.detailLabel}>Status</Text>
+                <Text style={[styles.detailValue, { color: "#34d399" }]}>On Track</Text>
+                <Text style={styles.detailSub}>Balanced intake</Text>
               </View>
             </View>
           </View>
@@ -474,17 +475,17 @@ const styles = StyleSheet.create({
 
   // Calorie Card
   calorieCard: {
-    backgroundColor: "#0d0d18",
-    borderRadius: 24,
-    padding: 20,
+    backgroundColor: "#0f0f1a",
+    borderRadius: 28,
+    padding: 24,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.06)",
-    marginBottom: 20,
+    borderColor: "rgba(124, 58, 237, 0.15)",
+    marginBottom: 24,
     shadowColor: "#7c3aed",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    elevation: 10,
   },
   calorieCardLayout: {
     flexDirection: "row",
@@ -559,10 +560,10 @@ const styles = StyleSheet.create({
   actionItem: {
     width: (SCREEN_WIDTH - 32) * 0.26,
     aspectRatio: 1.25,
-    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    backgroundColor: "rgba(124, 58, 237, 0.08)",
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.05)",
+    borderColor: "rgba(124, 58, 237, 0.2)",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
@@ -572,7 +573,7 @@ const styles = StyleSheet.create({
   },
   actionLabel: {
     fontSize: 11,
-    color: "rgba(255,255,255,0.5)",
+    color: "rgba(255,255,255,0.65)",
     fontWeight: "700",
   },
   actionPrimary: {
@@ -609,7 +610,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 14,
-    color: "rgba(255,255,255,0.4)",
+    color: "rgba(255,255,255,0.5)",
     fontWeight: "800",
     textTransform: "uppercase",
     letterSpacing: 2,
@@ -628,13 +629,13 @@ const styles = StyleSheet.create({
   },
   miniMacroCard: {
     width: (SCREEN_WIDTH - 32 - 20) / 3,
-    backgroundColor: "#0d0d18",
+    backgroundColor: "#0f0f1a",
     borderRadius: 20,
     paddingVertical: 16,
     paddingHorizontal: 12,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.05)",
+    borderColor: "rgba(124, 58, 237, 0.12)",
   },
   miniRingLabelBox: {
     position: "absolute",
@@ -666,10 +667,10 @@ const styles = StyleSheet.create({
 
   // Weekly insights
   insightsCard: {
-    backgroundColor: "#0d0d18",
+    backgroundColor: "#0f0f1a",
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.05)",
+    borderColor: "rgba(124, 58, 237, 0.12)",
     padding: 20,
     marginBottom: 24,
   },
@@ -743,17 +744,17 @@ const styles = StyleSheet.create({
   mealCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#0d0d18",
+    backgroundColor: "#0f0f1a",
     borderRadius: 20,
     padding: 14,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.05)",
+    borderColor: "rgba(124, 58, 237, 0.1)",
   },
   mealIconBox: {
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.03)",
+    backgroundColor: "rgba(124, 58, 237, 0.1)",
     alignItems: "center",
     justifyContent: "center",
   },

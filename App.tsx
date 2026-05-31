@@ -116,9 +116,9 @@ export default function App() {
 const styles = StyleSheet.create({
   tabBarContainer: {
     position: "relative",
-    backgroundColor: "#0d0d1a",
+    backgroundColor: "#0a0a10",
     borderTopWidth: 1,
-    borderTopColor: "#1f1f35",
+    borderTopColor: "rgba(124, 58, 237, 0.1)",
   },
   tabBar: {
     flexDirection: "row",
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
   },
   tabIcon: {
     fontSize: 20,
-    color: "rgba(255, 255, 255, 0.3)",
+    color: "rgba(255, 255, 255, 0.35)",
   },
   tabIconActive: {
     color: "#7C3AED",
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize: 10,
     fontWeight: "700",
-    color: "rgba(255, 255, 255, 0.3)",
+    color: "rgba(255, 255, 255, 0.35)",
     letterSpacing: 0.5,
   },
   tabLabelActive: {
@@ -156,21 +156,21 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: -24,
     alignSelf: "center",
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 62,
+    height: 62,
+    borderRadius: 31,
     backgroundColor: "#7C3AED",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 4,
-    borderColor: "#080810",
+    borderWidth: 5,
+    borderColor: "#0a0a10",
     shadowColor: "#7C3AED",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.55,
-    shadowRadius: 16,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    elevation: 12,
   },
   fabIcon: {
-    fontSize: 24,
+    fontSize: 26,
   },
 });
