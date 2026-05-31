@@ -373,12 +373,12 @@ export default function HistoryScreen() {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#080810" },
+  screen: { flex: 1, backgroundColor: "#05050a" },
   scroll: { paddingHorizontal: 24, paddingTop: 60, paddingBottom: 24 },
 
   header: { marginBottom: 24 },
-  headerSub: { fontSize: 12, color: "#4b5563", letterSpacing: 3, textTransform: "uppercase", fontWeight: "600" },
-  headerTitle: { fontSize: 36, color: "#f9fafb", fontWeight: "800", letterSpacing: -1, marginTop: 2 },
+  headerSub: { fontSize: 12, color: "rgba(255, 255, 255, 0.4)", letterSpacing: 3, textTransform: "uppercase", fontWeight: "600" },
+  headerTitle: { fontSize: 36, color: "#fff", fontWeight: "800", letterSpacing: -1, marginTop: 2 },
 
   // Card
   card: {
@@ -387,42 +387,47 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#1f1f35",
+    borderColor: "rgba(124, 58, 237, 0.12)",
   },
   cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 18 },
   cardTitle: { fontSize: 15, color: "#e5e7eb", fontWeight: "700", letterSpacing: 0.2 },
-  badge: { backgroundColor: "#14291a", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  badge: { backgroundColor: "rgba(52, 211, 153, 0.08)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
   badgeText: { fontSize: 11, color: "#34d399", fontWeight: "600" },
 
   // Bars
   barsRow: { flexDirection: "row", alignItems: "flex-end", position: "absolute", bottom: 0, left: 0, right: 0, height: "100%" },
   barCol: { flex: 1, alignItems: "center", justifyContent: "flex-end", paddingBottom: 0 },
-  bar: { width: "55%" },
-  dayLabel: { fontSize: 10, color: "#4b5563", marginTop: 6, fontWeight: "600" },
+  bar: { width: "55%", shadowColor: "#34d399", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4 },
+  dayLabel: { fontSize: 10, color: "rgba(255, 255, 255, 0.4)", marginTop: 6, fontWeight: "600" },
 
   // Goal line
-  goalLine: { position: "absolute", left: 0, right: 0, height: 1, borderStyle: "dashed", borderWidth: 1, borderColor: "#374151" },
-  goalLabel: { position: "absolute", right: 0, fontSize: 9, color: "#4b5563", fontWeight: "600" },
+  goalLine: { position: "absolute", left: 0, right: 0, height: 1, borderStyle: "dashed", borderWidth: 1, borderColor: "rgba(255, 255, 255, 0.1)" },
+  goalLabel: { position: "absolute", right: 0, fontSize: 9, color: "rgba(255, 255, 255, 0.3)", fontWeight: "600" },
 
   // Grid
-  gridLine: { position: "absolute", left: 0, right: 0, height: 0.5, backgroundColor: "#1a1a2e" },
+  gridLine: { position: "absolute", left: 0, right: 0, height: 0.5, backgroundColor: "rgba(255, 255, 255, 0.05)" },
 
   // Legend
   legend: { flexDirection: "row", gap: 16, marginTop: 12 },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
   legendDot: { width: 7, height: 7, borderRadius: 4 },
-  legendText: { fontSize: 10, color: "#6b7280" },
+  legendText: { fontSize: 10, color: "rgba(255, 255, 255, 0.35)" },
 
   // Streak card
   streakCard: {
-    backgroundColor: "#0d0d1f",
+    backgroundColor: "#0f0f1f",
     borderRadius: 24,
     padding: 24,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#facc1530",
+    borderColor: "rgba(250, 204, 21, 0.15)",
     overflow: "hidden",
     position: "relative",
+    shadowColor: "#facc15",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 6,
   },
   streakGlow: {
     position: "absolute",
@@ -431,21 +436,21 @@ const styles = StyleSheet.create({
     width: 160,
     height: 160,
     borderRadius: 80,
-    backgroundColor: "#facc1512",
+    backgroundColor: "rgba(250, 204, 21, 0.08)",
   },
   streakTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 },
-  streakLabel: { fontSize: 11, color: "#6b7280", letterSpacing: 2, textTransform: "uppercase", fontWeight: "600", marginBottom: 4 },
+  streakLabel: { fontSize: 11, color: "rgba(255, 255, 255, 0.4)", letterSpacing: 2, textTransform: "uppercase", fontWeight: "600", marginBottom: 4 },
   streakNumber: { fontSize: 56, color: "#facc15", fontWeight: "900", lineHeight: 60 },
   streakUnit: { fontSize: 18, color: "#fbbf24", fontWeight: "700", marginBottom: 8 },
   streakBest: {
-    backgroundColor: "#1a1600",
+    backgroundColor: "rgba(250, 204, 21, 0.08)",
     borderRadius: 12,
     padding: 12,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#facc1530",
+    borderColor: "rgba(250, 204, 21, 0.2)",
   },
-  streakBestLabel: { fontSize: 10, color: "#78716c", fontWeight: "600" },
+  streakBestLabel: { fontSize: 10, color: "rgba(255, 255, 255, 0.4)", fontWeight: "600" },
   streakBestVal: { fontSize: 20, color: "#fbbf24", fontWeight: "800", marginTop: 2 },
 
   // Week dots
@@ -453,20 +458,20 @@ const styles = StyleSheet.create({
   dotCol: { alignItems: "center", gap: 5 },
   dot: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   dotActive: { backgroundColor: "#facc15" },
-  dotInactive: { backgroundColor: "#1c1c2e", borderWidth: 1, borderColor: "#2d2d4e" },
-  dotDay: { fontSize: 9, color: "#4b5563", fontWeight: "700" },
+  dotInactive: { backgroundColor: "rgba(255, 255, 255, 0.05)", borderWidth: 1, borderColor: "rgba(255, 255, 255, 0.1)" },
+  dotDay: { fontSize: 9, color: "rgba(255, 255, 255, 0.4)", fontWeight: "700" },
 
   // Stats
   streakStats: {
     flexDirection: "row",
-    backgroundColor: "#07070f",
+    backgroundColor: "rgba(124, 58, 237, 0.05)",
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: "#1a1a2e",
+    borderColor: "rgba(124, 58, 237, 0.1)",
   },
   statItem: { flex: 1, alignItems: "center" },
-  statVal: { fontSize: 18, color: "#f9fafb", fontWeight: "800" },
-  statLbl: { fontSize: 10, color: "#4b5563", marginTop: 2, fontWeight: "500" },
-  statDivider: { width: 1, backgroundColor: "#1f1f35", marginVertical: 4 },
+  statVal: { fontSize: 18, color: "#fff", fontWeight: "800" },
+  statLbl: { fontSize: 10, color: "rgba(255, 255, 255, 0.4)", marginTop: 2, fontWeight: "500" },
+  statDivider: { width: 1, backgroundColor: "rgba(255, 255, 255, 0.1)", marginVertical: 4 },
 });
