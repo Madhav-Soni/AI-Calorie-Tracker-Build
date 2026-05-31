@@ -62,13 +62,10 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   return (
     <View style={styles.tabBarContainer}>
       <View style={styles.tabBar}>
-        {renderTab(0)} {/* Home */}
-        {renderTab(1)} {/* History */}
-        
-        {/* Placeholder spacer for floating central camera FAB */}
+        {renderTab(0)}
+        {renderTab(1)}
         <View style={styles.fabPlaceholder} />
-        
-        {renderTab(2)} {/* Profile */}
+        {renderTab(2)}
       </View>
 
       {/* Center Floating Camera FAB */}
