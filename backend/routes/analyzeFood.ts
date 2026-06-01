@@ -87,6 +87,8 @@ router.post(
       }
 
       const cleanBase64 = base64.replace(/^data:image\/\w+;base64,/, "");
+      console.log("base64 length:", cleanBase64.length);
+      console.log("base64 start:", cleanBase64.substring(0, 20));
 
       const CF_ACCOUNT_ID = process.env.CF_ACCOUNT_ID;
       const CF_API_TOKEN = process.env.CF_API_TOKEN;
@@ -98,6 +100,9 @@ router.post(
 
       const url = `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/run/@cf/meta/llama-3.2-11b-vision-instruct`;
 
+      // Convert base64 to uint8 number array (required by Cloudflare vision models)
+      const imageBytes = Array.from(Buffer.from(cleanBase64, "base64"));
+
       console.log("Sending request to Cloudflare Workers AI...");
       const cfResponse = await fetch(url, {
         method: "POST",
@@ -106,7 +111,7 @@ router.post(
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          image: cleanBase64,
+          image: imageBytes,
           prompt: PROMPT,
         }),
       });

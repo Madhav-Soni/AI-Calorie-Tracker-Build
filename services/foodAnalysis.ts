@@ -35,10 +35,7 @@ export const INITIAL_STATE: AnalysisState = {
   progress: 0,
 };
 
-// ─── Config ───────────────────────────────────────────────────────────────────
-// For physical device testing: replace with your machine's LAN IP (e.g. 192.168.1.42)
-export const API_BASE =
-  Platform.OS === "android" ? "http://10.0.2.2:3000" : "http://localhost:3000";
+export const API_BASE = "http://10.20.6.142:3000";
 
 const ANALYZE_ENDPOINT = `${API_BASE}/analyze-food`;
 const TIMEOUT_MS = 30_000;
