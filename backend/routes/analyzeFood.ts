@@ -2,39 +2,8 @@ import { Router, Request, Response } from "express";
 
 const router = Router();
 
-const PROMPT = `
-You are a strict nutrition analysis API.
-
-Analyze ONLY edible foods visible in the image.
-
-Rules:
-- Return ONLY valid JSON
-- No markdown
-- No explanations
-- No commentary
-- No code blocks
-- Use realistic serving sizes
-- Never output 0 calories for visible foods
-
-Return EXACTLY:
-
-{
-  "foods":[
-    {
-      "name":"string",
-      "portion":"string",
-      "calories":0,
-      "protein":0,
-      "carbs":0,
-      "fat":0
-    }
-  ],
-  "totalCalories":0,
-  "totalProtein":0,
-  "totalCarbs":0,
-  "totalFat":0
-}
-`;
+const PROMPT = `Analyze the food in this image. Return ONLY a JSON object, no explanation, no markdown:
+{"foods":[{"name":"string","portion":"string","calories":0,"protein":0,"carbs":0,"fat":0}],"totalCalories":0,"totalProtein":0,"totalCarbs":0,"totalFat":0}`;
 
 function parseCFResponse(resultPayload: any): any {
   if (!resultPayload) {
@@ -113,6 +82,7 @@ router.post(
         body: JSON.stringify({
           image: imageBytes,
           prompt: PROMPT,
+          max_tokens: 512,
         }),
       });
 
