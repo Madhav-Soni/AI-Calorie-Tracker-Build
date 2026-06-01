@@ -11,6 +11,7 @@ function parseCFResponse(resultPayload: any): any {
   }
 
   const responseVal = resultPayload.result?.response;
+  console.log("RAW CF RESPONSE:", responseVal);
   if (!responseVal) {
     throw new Error("No response content found in Cloudflare result");
   }
