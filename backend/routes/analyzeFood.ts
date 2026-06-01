@@ -2,119 +2,146 @@ import { Router, Request, Response } from "express";
 
 const router = Router();
 
-const PROMPT = `Analyze the food in this image. Return ONLY a JSON object, no explanation, no markdown:
-{"foods":[{"name":"string","portion":"string","calories":0,"protein":0,"carbs":0,"fat":0}],"totalCalories":0,"totalProtein":0,"totalCarbs":0,"totalFat":0}`;
+const PROMPT = `You are a nutrition API. Analyze the food in this image.
+Output ONLY this JSON, no text before or after:
+{"foods":[{"name":"food name","portion":"serving size","calories":0,"protein":0,"carbs":0,"fat":0}],"totalCalories":0,"totalProtein":0,"totalCarbs":0,"totalFat":0}
+Use realistic nutrition values. Never refuse. Never explain. JSON only.`;
 
-function parseCFResponse(resultPayload: any): any {
-  if (!resultPayload) {
-    throw new Error("Empty response from Cloudflare Workers AI");
-  }
+const RETRY_PROMPT = `Output nutrition JSON for the food in this image. JSON only, no text:
+{"foods":[{"name":"food name","portion":"serving size","calories":0,"protein":0,"carbs":0,"fat":0}],"totalCalories":0,"totalProtein":0,"totalCarbs":0,"totalFat":0}`;
 
-  const responseVal = resultPayload.result?.response;
-  console.log("RAW CF RESPONSE:", responseVal);
-  if (!responseVal) {
-    throw new Error("No response content found in Cloudflare result");
-  }
-
-  // 1. Direct JSON object response
-  if (typeof responseVal === "object" && responseVal !== null) {
-    return responseVal;
-  }
-
-  // 2. String response with embedded JSON
-  if (typeof responseVal === "string") {
-    const trimmed = responseVal.trim();
-    // Try direct parse
-    try {
-      return JSON.parse(trimmed);
-    } catch (e) {
-      console.warn("Direct JSON parse failed, trying regex extraction:", e);
-    }
-
-    // Regex extraction fallback: look for content between curly braces
-    const jsonRegex = /({[\s\S]*})/;
-    const match = jsonRegex.exec(trimmed);
-    if (match && match[1]) {
-      try {
-        return JSON.parse(match[1].trim());
-      } catch (e) {
-        console.error("Regex JSON parse failed:", e);
-      }
-    }
-  }
-
-  throw new Error(`Failed to parse nutrition JSON from response: ${JSON.stringify(responseVal)}`);
+function isRefusal(text: string): boolean {
+  const phrases = [
+    "i'm not able", "i cannot", "i can't", "not able to",
+    "cannot analyze", "don't have the capability", "as an ai",
+    "i am not able", "unable to", "can't identify",
+  ];
+  return phrases.some(p => text.toLowerCase().includes(p));
 }
 
-router.post(
-  "/analyze-food",
-  async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { base64, mimeType } = req.body;
-      if (!base64) {
-        res.status(400).json({ error: "No image base64 data provided" });
-        return;
-      }
+function extractJSON(text: string): any {
+  // Try direct parse
+  try { return JSON.parse(text.trim()); } catch {}
 
-      const cleanBase64 = base64.replace(/^data:image\/\w+;base64,/, "");
-      console.log("base64 length:", cleanBase64.length);
-      console.log("base64 start:", cleanBase64.substring(0, 20));
-
-      const CF_ACCOUNT_ID = process.env.CF_ACCOUNT_ID;
-      const CF_API_TOKEN = process.env.CF_API_TOKEN;
-
-      if (!CF_ACCOUNT_ID || !CF_API_TOKEN) {
-        res.status(500).json({ error: "Cloudflare credentials are not configured on the server" });
-        return;
-      }
-
-      const url = `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/run/@cf/meta/llama-3.2-11b-vision-instruct`;
-
-      // Convert base64 to uint8 number array (required by Cloudflare vision models)
-      const imageBytes = Array.from(Buffer.from(cleanBase64, "base64"));
-
-      console.log("Sending request to Cloudflare Workers AI...");
-      const cfResponse = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${CF_API_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          image: imageBytes,
-          prompt: PROMPT,
-          max_tokens: 512,
-        }),
-      });
-
-      if (!cfResponse.ok) {
-        const errorText = await cfResponse.text();
-        console.error("Cloudflare API returned error status:", cfResponse.status, errorText);
-        res.status(cfResponse.status).json({
-          error: `Cloudflare API error (${cfResponse.status}): ${errorText}`,
-        });
-        return;
-      }
-
-      const rawResult = await cfResponse.json();
-      console.log("Cloudflare raw response status: success =", rawResult.success);
-
-      try {
-        const nutritionData = parseCFResponse(rawResult);
-        res.status(200).json(nutritionData);
-      } catch (parseError) {
-        console.error("Failed to parse Cloudflare response:", parseError, "Raw response:", JSON.stringify(rawResult));
-        res.status(500).json({
-          error: parseError instanceof Error ? parseError.message : "Failed to parse response from Cloudflare Workers AI",
-        });
-      }
-    } catch (error) {
-      console.error("Error in analyze-food:", error);
-      res.status(500).json({
-        error: error instanceof Error ? error.message : "Failed to analyze food image",
-      });
-    }
+  // Extract outermost { } block
+  const match = /\{[\s\S]*\}/.exec(text);
+  if (match) {
+    // Try JSON parse
+    try { return JSON.parse(match[0]); } catch {}
+    // Try JS object eval (handles unquoted keys)
+    try { return Function('"use strict"; return (' + match[0] + ')')(); } catch {}
   }
-);
+
+  return null;
+}
+
+async function callCloudflare(
+  imageBytes: number[],
+  prompt: string,
+  accountId: string,
+  apiToken: string
+): Promise<any> {
+  const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/@cf/meta/llama-3.2-11b-vision-instruct`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      image: imageBytes,
+      prompt,
+      max_tokens: 512,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Cloudflare API error (${response.status}): ${errorText}`);
+  }
+
+  return response.json();
+}
+
+router.post("/analyze-food", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { base64 } = req.body;
+    if (!base64) {
+      res.status(400).json({ error: "No image data provided" });
+      return;
+    }
+
+    const CF_ACCOUNT_ID = process.env.CF_ACCOUNT_ID;
+    const CF_API_TOKEN = process.env.CF_API_TOKEN;
+
+    if (!CF_ACCOUNT_ID || !CF_API_TOKEN) {
+      res.status(500).json({ error: "Cloudflare credentials not configured" });
+      return;
+    }
+
+    const cleanBase64 = base64.replace(/^data:image\/\w+;base64,/, "");
+    const imageBytes = Array.from(Buffer.from(cleanBase64, "base64"));
+
+    // First attempt
+    console.log("Attempt 1...");
+    let result = await callCloudflare(imageBytes, PROMPT, CF_ACCOUNT_ID, CF_API_TOKEN);
+    let responseText = result?.result?.response;
+    console.log("Response 1:", typeof responseText === "string" ? responseText.substring(0, 100) : responseText);
+
+    // If refusal or object, handle it
+    if (typeof responseText === "object" && responseText !== null) {
+      // Already a parsed object — use directly
+      res.status(200).json(responseText);
+      return;
+    }
+
+    if (typeof responseText === "string" && isRefusal(responseText)) {
+      // Retry with simpler prompt
+      console.log("Refusal detected, retrying...");
+      result = await callCloudflare(imageBytes, RETRY_PROMPT, CF_ACCOUNT_ID, CF_API_TOKEN);
+      responseText = result?.result?.response;
+      console.log("Response 2:", typeof responseText === "string" ? responseText.substring(0, 100) : responseText);
+    }
+
+    // If retry also returned an object
+    if (typeof responseText === "object" && responseText !== null) {
+      res.status(200).json(responseText);
+      return;
+    }
+
+    // Parse the string response
+    const nutrition = extractJSON(responseText);
+    if (!nutrition) {
+      console.error("Could not extract JSON from:", responseText);
+      res.status(500).json({ error: "Could not parse nutrition data from model response" });
+      return;
+    }
+
+    // Normalize fields
+    const normalized = {
+      foods: (nutrition.foods ?? []).map((f: any) => ({
+        name: f.name ?? "Unknown",
+        portion: f.portion ?? f.serving_size ?? "1 serving",
+        calories: Number(f.calories ?? 0),
+        protein: Number(f.protein ?? 0),
+        carbs: Number(f.carbs ?? f.carbohydrates ?? 0),
+        fat: Number(f.fat ?? 0),
+      })),
+      totalCalories: Number(nutrition.totalCalories ?? nutrition.total_calories ?? 0),
+      totalProtein: Number(nutrition.totalProtein ?? nutrition.total_protein ?? 0),
+      totalCarbs: Number(nutrition.totalCarbs ?? nutrition.total_carbs ?? 0),
+      totalFat: Number(nutrition.totalFat ?? nutrition.total_fat ?? 0),
+    };
+
+    res.status(200).json(normalized);
+
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Failed to analyze food image",
+    });
+  }
+});
 
 export default router;
