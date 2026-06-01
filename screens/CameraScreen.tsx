@@ -182,14 +182,25 @@ export default function CameraScreen() {
     if (!capturedUri || isLoading) return;
     const result = await analyze(capturedUri);
     if (!result) {
-      Alert.alert(
-        "Analysis Failed",
-        state.error ?? "Could not analyse the image. Check your connection and backend.",
-        [
-          { text: "Retry", onPress: () => handleAnalyse() },
-          { text: "Cancel", style: "cancel" },
-        ]
-      );
+      if (state.error && state.error.includes("Please retake the photo")) {
+        Alert.alert(
+          "Food Not Identified",
+          state.error,
+          [
+            { text: "Retake Photo", onPress: () => retake() },
+            { text: "Cancel", style: "cancel" },
+          ]
+        );
+      } else {
+        Alert.alert(
+          "Analysis Failed",
+          state.error ?? "Could not analyse the image. Check your connection and backend.",
+          [
+            { text: "Retry", onPress: () => handleAnalyse() },
+            { text: "Cancel", style: "cancel" },
+          ]
+        );
+      }
     }
   };
 
