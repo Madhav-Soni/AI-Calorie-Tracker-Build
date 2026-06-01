@@ -27,7 +27,7 @@ const FRAME_H = width * 0.78;
 
 const LOADING_PHASES = [
   { threshold: 10, label: "Uploading image…", sub: "Sending to AI backend" },
-  { threshold: 40, label: "Processing…",      sub: "Gemini Vision is reading your meal" },
+  { threshold: 40, label: "Processing…",      sub: "Workers AI is reading your meal" },
   { threshold: 70, label: "Analysing macros…",sub: "Estimating calories & nutrients" },
   { threshold: 95, label: "Almost done…",     sub: "Building your nutrition breakdown" },
 ];

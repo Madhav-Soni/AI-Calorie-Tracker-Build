@@ -1,52 +1,137 @@
 import { Router, Request, Response } from "express";
-import multer from "multer";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const router = Router();
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    file.mimetype.startsWith("image/") ? cb(null, true) : cb(new Error("Images only"));
-  },
-});
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const PROMPT = `
+You are a strict nutrition analysis API.
 
-const PROMPT = `Analyze this food image. Identify all visible foods and estimate their nutritional content.
-Respond ONLY with valid JSON, no markdown, no explanation:
-{"foods":[{"name":"","portion":"","calories":0,"protein":0,"carbs":0,"fat":0}],"totalCalories":0,"totalProtein":0,"totalCarbs":0,"totalFat":0}
-Rules: protein/carbs/fat in grams, calories in kcal, totals equal sum of items, empty array with zero totals if no food visible.`;
+Analyze ONLY edible foods visible in the image.
+
+Rules:
+- Return ONLY valid JSON
+- No markdown
+- No explanations
+- No commentary
+- No code blocks
+- Use realistic serving sizes
+- Never output 0 calories for visible foods
+
+Return EXACTLY:
+
+{
+  "foods":[
+    {
+      "name":"string",
+      "portion":"string",
+      "calories":0,
+      "protein":0,
+      "carbs":0,
+      "fat":0
+    }
+  ],
+  "totalCalories":0,
+  "totalProtein":0,
+  "totalCarbs":0,
+  "totalFat":0
+}
+`;
+
+function parseCFResponse(resultPayload: any): any {
+  if (!resultPayload) {
+    throw new Error("Empty response from Cloudflare Workers AI");
+  }
+
+  const responseVal = resultPayload.result?.response;
+  if (!responseVal) {
+    throw new Error("No response content found in Cloudflare result");
+  }
+
+  // 1. Direct JSON object response
+  if (typeof responseVal === "object" && responseVal !== null) {
+    return responseVal;
+  }
+
+  // 2. String response with embedded JSON
+  if (typeof responseVal === "string") {
+    const trimmed = responseVal.trim();
+    // Try direct parse
+    try {
+      return JSON.parse(trimmed);
+    } catch (e) {
+      console.warn("Direct JSON parse failed, trying regex extraction:", e);
+    }
+
+    // Regex extraction fallback: look for content between curly braces
+    const jsonRegex = /({[\s\S]*})/;
+    const match = jsonRegex.exec(trimmed);
+    if (match && match[1]) {
+      try {
+        return JSON.parse(match[1].trim());
+      } catch (e) {
+        console.error("Regex JSON parse failed:", e);
+      }
+    }
+  }
+
+  throw new Error(`Failed to parse nutrition JSON from response: ${JSON.stringify(responseVal)}`);
+}
 
 router.post(
   "/analyze-food",
-  upload.single("image"),
   async (req: Request, res: Response): Promise<void> => {
     try {
-      if (!req.file) {
-        res.status(400).json({ error: "No image provided" });
+      const { base64, mimeType } = req.body;
+      if (!base64) {
+        res.status(400).json({ error: "No image base64 data provided" });
         return;
       }
 
-      // Using gemini-3.5-flash which is available and verified
-      const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
+      const cleanBase64 = base64.replace(/^data:image\/\w+;base64,/, "");
 
-      const result = await model.generateContent([
-        PROMPT,
-        {
-          inlineData: {
-            mimeType: req.file.mimetype,
-            data: req.file.buffer.toString("base64"),
-          },
+      const CF_ACCOUNT_ID = process.env.CF_ACCOUNT_ID;
+      const CF_API_TOKEN = process.env.CF_API_TOKEN;
+
+      if (!CF_ACCOUNT_ID || !CF_API_TOKEN) {
+        res.status(500).json({ error: "Cloudflare credentials are not configured on the server" });
+        return;
+      }
+
+      const url = `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/run/@cf/meta/llama-3.2-11b-vision-instruct`;
+
+      console.log("Sending request to Cloudflare Workers AI...");
+      const cfResponse = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${CF_API_TOKEN}`,
+          "Content-Type": "application/json",
         },
-      ]);
+        body: JSON.stringify({
+          image: cleanBase64,
+          prompt: PROMPT,
+        }),
+      });
 
-      const text = result.response
-        .text()
-        .replace(/```json|```/g, "")
-        .trim();
+      if (!cfResponse.ok) {
+        const errorText = await cfResponse.text();
+        console.error("Cloudflare API returned error status:", cfResponse.status, errorText);
+        res.status(cfResponse.status).json({
+          error: `Cloudflare API error (${cfResponse.status}): ${errorText}`,
+        });
+        return;
+      }
 
-      res.status(200).json(JSON.parse(text));
+      const rawResult = await cfResponse.json();
+      console.log("Cloudflare raw response status: success =", rawResult.success);
+
+      try {
+        const nutritionData = parseCFResponse(rawResult);
+        res.status(200).json(nutritionData);
+      } catch (parseError) {
+        console.error("Failed to parse Cloudflare response:", parseError, "Raw response:", JSON.stringify(rawResult));
+        res.status(500).json({
+          error: parseError instanceof Error ? parseError.message : "Failed to parse response from Cloudflare Workers AI",
+        });
+      }
     } catch (error) {
       console.error("Error in analyze-food:", error);
       res.status(500).json({

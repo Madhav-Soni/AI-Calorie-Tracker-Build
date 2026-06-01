@@ -1,4 +1,5 @@
 import { Platform } from "react-native";
+import * as ImageManipulator from "expo-image-manipulator";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface FoodItem {
@@ -59,20 +60,26 @@ export async function analyzeFood(
 ): Promise<AnalysisResult> {
   onProgress?.("uploading", 10);
 
-  const filename = imageUri.split("/").pop() ?? "meal.jpg";
-  const ext = (/\.(\w+)$/.exec(filename) ?? [])[1] ?? "jpeg";
-  const mimeType = `image/${ext === "jpg" ? "jpeg" : ext}`;
-
-  const formData = new FormData();
-  formData.append("image", { uri: imageUri, name: filename, type: mimeType } as any);
+  // Compress the image to prevent token limit exceeded on Cloudflare
+  const manipulated = await ImageManipulator.manipulateAsync(
+    imageUri,
+    [{ resize: { width: 512 } }],
+    { compress: 0.5, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+  );
 
   onProgress?.("uploading", 40);
 
   const response = await withTimeout(
     fetch(ANALYZE_ENDPOINT, {
       method: "POST",
-      body: formData,
-      headers: { Accept: "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      body: JSON.stringify({
+        base64: manipulated.base64,
+        mimeType: "image/jpeg",
+      }),
     }),
     TIMEOUT_MS
   );
