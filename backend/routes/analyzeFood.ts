@@ -2,12 +2,16 @@ import { Router, Request, Response } from "express";
 
 const router = Router();
 
-const PROMPT = `You are a nutrition API. Analyze the food in this image.
-Output ONLY this JSON, no text before or after:
-{"foods":[{"name":"food name","portion":"serving size","calories":0,"protein":0,"carbs":0,"fat":0}],"totalCalories":0,"totalProtein":0,"totalCarbs":0,"totalFat":0}
-Use realistic nutrition values. Never refuse. Never explain. JSON only.`;
+const PROMPT = `You are a nutrition API. Analyze ONLY real edible food items in this image.
+If the image does not contain real food (e.g. laptops, people, objects, screens), return exactly:
+{"foods":[],"totalCalories":0,"totalProtein":0,"totalCarbs":0,"totalFat":0}
 
-const RETRY_PROMPT = `Output nutrition JSON for the food in this image. JSON only, no text:
+If real food IS visible, output ONLY this JSON with realistic values, no text before or after:
+{"foods":[{"name":"food name","portion":"serving size","calories":0,"protein":0,"carbs":0,"fat":0}],"totalCalories":0,"totalProtein":0,"totalCarbs":0,"totalFat":0}
+
+Never refuse. Never explain. JSON only.`;
+
+const RETRY_PROMPT = `Output nutrition JSON for the food in this image. If no food is visible, return all values as zero. JSON only, no text:
 {"foods":[{"name":"food name","portion":"serving size","calories":0,"protein":0,"carbs":0,"fat":0}],"totalCalories":0,"totalProtein":0,"totalCarbs":0,"totalFat":0}`;
 
 function isRefusal(text: string): boolean {
@@ -89,13 +93,6 @@ router.post("/analyze-food", async (req: Request, res: Response): Promise<void> 
     let responseText = result?.result?.response;
     console.log("Response 1:", typeof responseText === "string" ? responseText.substring(0, 100) : responseText);
 
-    // If refusal or object, handle it
-    if (typeof responseText === "object" && responseText !== null) {
-      // Already a parsed object — use directly
-      res.status(200).json(responseText);
-      return;
-    }
-
     if (typeof responseText === "string" && isRefusal(responseText)) {
       // Retry with simpler prompt
       console.log("Refusal detected, retrying...");
@@ -104,14 +101,13 @@ router.post("/analyze-food", async (req: Request, res: Response): Promise<void> 
       console.log("Response 2:", typeof responseText === "string" ? responseText.substring(0, 100) : responseText);
     }
 
-    // If retry also returned an object
+    let nutrition: any = null;
     if (typeof responseText === "object" && responseText !== null) {
-      res.status(200).json(responseText);
-      return;
+      nutrition = responseText;
+    } else if (typeof responseText === "string") {
+      nutrition = extractJSON(responseText);
     }
 
-    // Parse the string response
-    const nutrition = extractJSON(responseText);
     if (!nutrition) {
       console.error("Could not extract JSON from:", responseText);
       res.status(500).json({ error: "Could not parse nutrition data from model response" });
@@ -133,6 +129,12 @@ router.post("/analyze-food", async (req: Request, res: Response): Promise<void> 
       totalCarbs: Number(nutrition.totalCarbs ?? nutrition.total_carbs ?? 0),
       totalFat: Number(nutrition.totalFat ?? nutrition.total_fat ?? 0),
     };
+
+    // Validation: Any real food image should have calories, protein, carbs, or fat > 0
+    if (normalized.totalCalories <= 0) {
+      res.status(400).json({ error: "Food is not clearly visible. Please retake the photo." });
+      return;
+    }
 
     res.status(200).json(normalized);
 
