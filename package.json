@@ -13,6 +13,7 @@
     "expo-image-picker": "^56.0.15",
     "express": "^5.2.1",
     "multer": "^2.1.1",
+    "path": "^0.12.7",
     "react": "19.2.3",
     "react-native": "0.85.3",
     "react-native-gesture-handler": "~2.31.1",
