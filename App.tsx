@@ -29,6 +29,9 @@ export type TabParamList = {
 const Tab = createBottomTabNavigator<TabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+import { BlurView } from "expo-blur";
+import { PressScale } from "./components/PressScale";
+
 function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const rootNav = navigation.getParent<NativeStackNavigationProp<RootStackParamList>>();
 
@@ -43,10 +46,9 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     };
 
     return (
-      <TouchableOpacity
+      <PressScale
         key={route.key}
         style={styles.tabItem}
-        activeOpacity={0.7}
         onPress={() => {
           if (!focused) navigation.navigate(route.name);
         }}
@@ -57,12 +59,13 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>
           {route.name}
         </Text>
-      </TouchableOpacity>
+      </PressScale>
     );
   };
 
   return (
     <View style={styles.tabBarContainer}>
+      <BlurView tint="dark" intensity={80} style={StyleSheet.absoluteFill} />
       <View style={styles.tabBar}>
         {renderTab(0)}
         {renderTab(1)}
@@ -71,13 +74,12 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
       </View>
 
       {/* Center Floating Camera FAB */}
-      <TouchableOpacity
+      <PressScale
         style={styles.fab}
-        activeOpacity={0.85}
         onPress={() => rootNav?.navigate("Camera")}
       >
         <Text style={styles.fabIcon}>📷</Text>
-      </TouchableOpacity>
+      </PressScale>
     </View>
   );
 }
@@ -114,15 +116,19 @@ export default function App() {
 
 const styles = StyleSheet.create({
   tabBarContainer: {
-    position: "relative",
-    backgroundColor: "#0a0a10",
-    borderTopWidth: 1,
-    borderTopColor: "rgba(124, 58, 237, 0.1)",
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(5, 5, 16, 0.5)",
+    borderTopWidth: 1.5,
+    borderTopColor: "rgba(127, 119, 221, 0.18)",
+    overflow: "hidden",
   },
   tabBar: {
     flexDirection: "row",
     paddingBottom: 24,
-    paddingTop: 10,
+    paddingTop: 12,
     alignItems: "center",
   },
   tabItem: {
@@ -161,8 +167,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#7C3AED",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 5,
-    borderColor: "#0a0a10",
+    borderWidth: 4,
+    borderColor: "#050510",
     shadowColor: "#7C3AED",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.6,

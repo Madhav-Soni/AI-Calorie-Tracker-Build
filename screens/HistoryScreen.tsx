@@ -373,21 +373,21 @@ export default function HistoryScreen() {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#05050a" },
-  scroll: { paddingHorizontal: 24, paddingTop: 60, paddingBottom: 24 },
+  screen: { flex: 1, backgroundColor: "#050510" },
+  scroll: { paddingHorizontal: 20, paddingTop: 60, paddingBottom: 24 },
 
   header: { marginBottom: 24 },
-  headerSub: { fontSize: 12, color: "rgba(255, 255, 255, 0.4)", letterSpacing: 3, textTransform: "uppercase", fontWeight: "600" },
+  headerSub: { fontSize: 10, color: "rgba(255, 255, 255, 0.4)", letterSpacing: 2, textTransform: "uppercase", fontWeight: "700" },
   headerTitle: { fontSize: 36, color: "#fff", fontWeight: "800", letterSpacing: -1, marginTop: 2 },
 
   // Card
   card: {
-    backgroundColor: "#0f0f1a",
-    borderRadius: 20,
+    backgroundColor: "#0D0D1A",
+    borderRadius: 22,
     padding: 20,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "rgba(124, 58, 237, 0.12)",
+    borderColor: "rgba(127, 119, 221, 0.18)",
   },
   cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 18 },
   cardTitle: { fontSize: 15, color: "#e5e7eb", fontWeight: "700", letterSpacing: 0.2 },
@@ -415,19 +415,19 @@ const styles = StyleSheet.create({
 
   // Streak card
   streakCard: {
-    backgroundColor: "#0f0f1f",
-    borderRadius: 24,
+    backgroundColor: "#0D0D1A",
+    borderRadius: 22,
     padding: 24,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "rgba(250, 204, 21, 0.15)",
+    borderColor: "rgba(250, 204, 21, 0.35)",
     overflow: "hidden",
     position: "relative",
     shadowColor: "#facc15",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 8,
   },
   streakGlow: {
     position: "absolute",
@@ -436,10 +436,10 @@ const styles = StyleSheet.create({
     width: 160,
     height: 160,
     borderRadius: 80,
-    backgroundColor: "rgba(250, 204, 21, 0.08)",
+    backgroundColor: "rgba(250, 204, 21, 0.12)",
   },
   streakTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 },
-  streakLabel: { fontSize: 11, color: "rgba(255, 255, 255, 0.4)", letterSpacing: 2, textTransform: "uppercase", fontWeight: "600", marginBottom: 4 },
+  streakLabel: { fontSize: 10, color: "rgba(255, 255, 255, 0.4)", letterSpacing: 2, textTransform: "uppercase", fontWeight: "700", marginBottom: 4 },
   streakNumber: { fontSize: 56, color: "#facc15", fontWeight: "900", lineHeight: 60 },
   streakUnit: { fontSize: 18, color: "#fbbf24", fontWeight: "700", marginBottom: 8 },
   streakBest: {
@@ -448,7 +448,7 @@ const styles = StyleSheet.create({
     padding: 12,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(250, 204, 21, 0.2)",
+    borderColor: "rgba(250, 204, 21, 0.35)",
   },
   streakBestLabel: { fontSize: 10, color: "rgba(255, 255, 255, 0.4)", fontWeight: "600" },
   streakBestVal: { fontSize: 20, color: "#fbbf24", fontWeight: "800", marginTop: 2 },
@@ -458,20 +458,20 @@ const styles = StyleSheet.create({
   dotCol: { alignItems: "center", gap: 5 },
   dot: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   dotActive: { backgroundColor: "#facc15" },
-  dotInactive: { backgroundColor: "rgba(255, 255, 255, 0.05)", borderWidth: 1, borderColor: "rgba(255, 255, 255, 0.1)" },
+  dotInactive: { backgroundColor: "rgba(255, 255, 255, 0.05)", borderWidth: 1, borderColor: "rgba(127, 119, 221, 0.18)" },
   dotDay: { fontSize: 9, color: "rgba(255, 255, 255, 0.4)", fontWeight: "700" },
 
   // Stats
   streakStats: {
     flexDirection: "row",
-    backgroundColor: "rgba(124, 58, 237, 0.05)",
-    borderRadius: 14,
+    backgroundColor: "rgba(127, 119, 221, 0.05)",
+    borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: "rgba(124, 58, 237, 0.1)",
+    borderColor: "rgba(127, 119, 221, 0.18)",
   },
   statItem: { flex: 1, alignItems: "center" },
   statVal: { fontSize: 18, color: "#fff", fontWeight: "800" },
   statLbl: { fontSize: 10, color: "rgba(255, 255, 255, 0.4)", marginTop: 2, fontWeight: "500" },
-  statDivider: { width: 1, backgroundColor: "rgba(255, 255, 255, 0.1)", marginVertical: 4 },
+  statDivider: { width: 1, backgroundColor: "rgba(127, 119, 221, 0.15)", marginVertical: 4 },
 });

@@ -20,9 +20,9 @@ const RETRY_PROMPT = `Output food names JSON for the food in this image. JSON on
 
 const ESTIMATE_PROMPT = (food: string) => `You are a nutrition API. Estimate realistic nutrition values for 1 serving of the food item: "${food}".
 Output ONLY this JSON format, no commentary, no markdown, no other text:
-{"name":"${food}","portion":"serving size","calories":0,"protein":0,"carbs":0,"fat":0}`;
+{"name":"${food}","calories":0,"protein":0,"carbs":0,"fat":0}`;
 
-const ESTIMATE_RETRY_PROMPT = (food: string) => `Return nutrition JSON only for "${food}". JSON: {"name":"${food}","portion":"1 serving","calories":100,"protein":2,"carbs":15,"fat":2}`;
+const ESTIMATE_RETRY_PROMPT = (food: string) => `Return nutrition JSON only for "${food}". JSON: {"name":"${food}","calories":100,"protein":2,"carbs":15,"fat":2}`;
 
 interface FoodEntry {
   portion: string;
@@ -215,20 +215,59 @@ function isRefusal(text: string): boolean {
   return phrases.some(p => text.toLowerCase().includes(p));
 }
 
-function extractJSON(text: string): any {
+function safeParseAIResponse(raw: unknown): any {
+  if (typeof raw === "object" && raw !== null) {
+    return raw;
+  }
+
+  const str = typeof raw === "string" ? raw : String(raw ?? "");
+  const trimmed = str.trim();
+
   // Try direct parse
-  try { return JSON.parse(text.trim()); } catch {}
+  try { return JSON.parse(trimmed); } catch {}
 
   // Extract outermost { } block
-  const match = /\{[\s\S]*\}/.exec(text);
+  const match = /\{[\s\S]*\}/.exec(trimmed);
   if (match) {
-    // Try JSON parse
     try { return JSON.parse(match[0]); } catch {}
-    // Try JS object eval (handles unquoted keys)
     try { return Function('"use strict"; return (' + match[0] + ')')(); } catch {}
   }
 
-  return null;
+  // Extract array block fallback
+  const arrayMatch = /\[[\s\S]*\]/.exec(trimmed);
+  if (arrayMatch) {
+    try {
+      const parsedArray = JSON.parse(arrayMatch[0]);
+      if (Array.isArray(parsedArray)) {
+        return { foods: parsedArray };
+      }
+    } catch {}
+    try {
+      const parsedArray = Function('"use strict"; return (' + arrayMatch[0] + ')')();
+      if (Array.isArray(parsedArray)) {
+        return { foods: parsedArray };
+      }
+    } catch {}
+  }
+
+  return {
+    foods: [],
+    totalCalories: 0,
+    totalProtein: 0,
+    totalCarbs: 0,
+    totalFat: 0
+  };
+}
+
+function isValidEstimation(parsed: any): boolean {
+  return (
+    parsed &&
+    typeof parsed === "object" &&
+    typeof parsed.calories === "number" && parsed.calories >= 0 &&
+    typeof parsed.protein === "number" && parsed.protein >= 0 &&
+    typeof parsed.carbs === "number" && parsed.carbs >= 0 &&
+    typeof parsed.fat === "number" && parsed.fat >= 0
+  );
 }
 
 async function callCloudflare(
@@ -276,10 +315,10 @@ async function estimateNutrition(
     let result = await callCloudflare(null, prompt, accountId, apiToken);
     let responseText = result?.result?.response;
 
-    let parsed = extractJSON(responseText);
+    let parsed = safeParseAIResponse(responseText);
 
-    // Validate response (calories > 0 and portion exists)
-    if (parsed && typeof parsed.calories === "number" && parsed.calories > 0 && parsed.portion) {
+    // Validate response using the validator
+    if (isValidEstimation(parsed)) {
       return parsed;
     }
 
@@ -288,36 +327,13 @@ async function estimateNutrition(
     const retryPrompt = ESTIMATE_RETRY_PROMPT(food);
     result = await callCloudflare(null, retryPrompt, accountId, apiToken);
     responseText = result?.result?.response;
-    parsed = extractJSON(responseText);
+    parsed = safeParseAIResponse(responseText);
 
-    if (parsed && typeof parsed.calories === "number" && parsed.calories > 0 && parsed.portion) {
+    if (isValidEstimation(parsed)) {
       return parsed;
     }
   } catch (err) {
     console.error(`Error estimating nutrition for "${food}":`, err);
-  }
-
-  return null;
-}
-
-// ─── Parse AI response safely ─────────────────────────────────────────────────
-function parseFoodNames(raw: string): string[] | null {
-  if (!raw) return null;
-  const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
-
-  // Try direct JSON parse first
-  try {
-    const parsed = JSON.parse(cleaned);
-    if (Array.isArray(parsed.foods)) return parsed.foods.map(String);
-  } catch {}
-
-  // Fallback: extract anything that looks like ["food1","food2"]
-  const match = cleaned.match(/\{[^}]*"foods"\s*:\s*\[([^\]]*)\]/);
-  if (match) {
-    return match[1]
-      .split(",")
-      .map(s => s.replace(/['"]/g, "").trim())
-      .filter(Boolean);
   }
 
   return null;
@@ -356,7 +372,13 @@ router.post("/analyze-food", async (req: Request, res: Response): Promise<void> 
       console.log("Response 2:", typeof responseText === "string" ? responseText.substring(0, 100) : responseText);
     }
 
-    const rawNames = parseFoodNames(responseText);
+    const parsed = safeParseAIResponse(responseText);
+    let rawNames: string[] = [];
+    if (parsed && Array.isArray(parsed.foods)) {
+      rawNames = parsed.foods.map(String);
+    } else if (Array.isArray(parsed)) {
+      rawNames = parsed.map(String);
+    }
 
     if (!rawNames || rawNames.length === 0) {
       res.status(422).json({ error: "No food confidently detected. Try a clearer photo." });

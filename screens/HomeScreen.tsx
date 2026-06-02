@@ -19,9 +19,20 @@ import type { RootStackParamList } from "../App";
 import { useMealStore } from "../useMealStore";
 import { getCoachRecommendation } from "../NutritionCoach";
 import { calculateStreaks } from "../streak";
+import Reanimated, {
+  useSharedValue,
+  useAnimatedProps,
+  useAnimatedStyle,
+  withTiming,
+  withRepeat,
+  withDelay,
+  interpolateColor,
+} from "react-native-reanimated";
+import { PressScale } from "../components/PressScale";
 
 const { width: W } = Dimensions.get("window");
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const ReanimatedCircle = Reanimated.createAnimatedComponent(Circle);
 
 const GOAL = { calories: 2000, protein: 150, carbs: 200, fat: 65 };
 
@@ -84,11 +95,13 @@ function MealRow({
 }: MealRowProps) {
   const slideAnim = useRef(new Animated.Value(20)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const widthScale = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.parallel([
       Animated.timing(slideAnim, { toValue: 0, duration: 400, delay, useNativeDriver: true, easing: Easing.out(Easing.cubic) }),
       Animated.timing(fadeAnim, { toValue: 1, duration: 400, delay, useNativeDriver: true }),
+      Animated.timing(widthScale, { toValue: 1, duration: 800, delay: delay + 150, useNativeDriver: false }),
     ]).start();
   }, []);
 
@@ -96,6 +109,11 @@ function MealRow({
   const totalMacros = meal.protein + meal.carbs + meal.fat;
   const pW = totalMacros ? (meal.protein / totalMacros) * 100 : 33;
   const cW = totalMacros ? (meal.carbs / totalMacros) * 100 : 33;
+  const fW = totalMacros ? (meal.fat / totalMacros) * 100 : 34;
+
+  const animatedPW = widthScale.interpolate({ inputRange: [0, 1], outputRange: ["0%", `${pW}%`] });
+  const animatedCW = widthScale.interpolate({ inputRange: [0, 1], outputRange: ["0%", `${cW}%`] });
+  const animatedFW = widthScale.interpolate({ inputRange: [0, 1], outputRange: ["0%", `${fW}%`] });
 
   const mealEmojis: Record<string, string> = {
     "Oats & Banana Bowl": "🥣",
@@ -115,9 +133,9 @@ function MealRow({
           <Text style={s.mealTime}>{time}</Text>
           {/* macro stripe */}
           <View style={s.stripe}>
-            <View style={[s.stripeP, { width: `${pW}%` }]} />
-            <View style={[s.stripeC, { width: `${cW}%` }]} />
-            <View style={s.stripeF} />
+            <Animated.View style={[s.stripeP, { width: animatedPW }]} />
+            <Animated.View style={[s.stripeC, { width: animatedCW }]} />
+            <Animated.View style={[s.stripeF, { width: animatedFW }]} />
           </View>
         </View>
         <View style={s.mealRight}>
@@ -163,31 +181,72 @@ export default function HomeScreen() {
   const calPct = Math.min(1.15, totals.calories / GOAL.calories);
   const ringColor = calPct < 0.8 ? "#34d399" : calPct <= 1 ? "#f59e0b" : "#ef4444";
 
-  // Animations
-  const ringAnim = useRef(new Animated.Value(0)).current;
+  // Reanimated calorie ring
+  const RING_SIZE = 210;
+  const RING_STROKE = 14;
+  const { r: mainR, circ: mainCirc } = ring(calPct, RING_SIZE, RING_STROKE);
+
+  const progress = useSharedValue(0);
+  useEffect(() => {
+    progress.value = withTiming(calPct, { duration: 1200 });
+  }, [calPct]);
+
+  const animatedProps = useAnimatedProps(() => {
+    return {
+      strokeDashoffset: mainCirc * (1 - Math.min(1, progress.value)),
+    };
+  });
+
+  // Reanimated scan button pulse
+  const pulse = useSharedValue(1);
+  useEffect(() => {
+    pulse.value = withRepeat(withTiming(1.08, { duration: 900 }), -1, true);
+  }, []);
+
+  const pulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulse.value }],
+  }));
+
+  // Reanimated Coach Card gradient glow pulse
+  const coachGlow = useSharedValue(0);
+  useEffect(() => {
+    coachGlow.value = withRepeat(withTiming(1, { duration: 2500 }), -1, true);
+  }, []);
+
+  const coachStyle = useAnimatedStyle(() => {
+    const borderColor = interpolateColor(
+      coachGlow.value,
+      [0, 1],
+      ["rgba(124, 58, 237, 0.2)", "rgba(236, 72, 153, 0.5)"]
+    );
+    const shadowColor = interpolateColor(
+      coachGlow.value,
+      [0, 1],
+      ["#7c3aed", "#ec4899"]
+    );
+    return {
+      borderColor,
+      shadowColor,
+    };
+  });
+
+  // Standard Animations
   const pAnim = useRef(new Animated.Value(0)).current;
   const cAnim = useRef(new Animated.Value(0)).current;
   const fAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
   const scanAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(ringAnim, { toValue: calPct, duration: 1600, useNativeDriver: false, easing: Easing.out(Easing.cubic) }),
       Animated.timing(pAnim, { toValue: Math.min(1, totals.protein / GOAL.protein), duration: 1200, delay: 200, useNativeDriver: false }),
       Animated.timing(cAnim, { toValue: Math.min(1, totals.carbs / GOAL.carbs), duration: 1200, delay: 300, useNativeDriver: false }),
       Animated.timing(fAnim, { toValue: Math.min(1, totals.fat / GOAL.fat), duration: 1200, delay: 400, useNativeDriver: false }),
       Animated.timing(fadeAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: 0, duration: 700, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
     ]).start();
-
-    Animated.loop(Animated.sequence([
-      Animated.timing(pulseAnim, { toValue: 1.06, duration: 900, useNativeDriver: true }),
-      Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
-    ])).start();
 
     Animated.loop(Animated.sequence([
       Animated.timing(glowAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
@@ -201,14 +260,6 @@ export default function HomeScreen() {
     ])).start();
   }, []);
 
-  // Ring math
-  const RING_SIZE = 210;
-  const RING_STROKE = 14;
-  const { r: mainR, circ: mainCirc } = ring(calPct, RING_SIZE, RING_STROKE);
-  const mainOffset = ringAnim.interpolate({
-    inputRange: [0, 1.15],
-    outputRange: [mainCirc, mainCirc * (1 - Math.min(1, calPct))],
-  });
 
   const glowOpacity = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.7] });
   const scanY = scanAnim.interpolate({ inputRange: [0, 1], outputRange: [-30, 30] });
@@ -270,11 +321,11 @@ export default function HomeScreen() {
                   stroke="rgba(255,255,255,0.04)" strokeWidth={RING_STROKE} fill="none"
                 />
                 {/* Progress */}
-                <AnimatedCircle
+                <ReanimatedCircle
                   cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={mainR}
                   stroke={"url(#grad)"} strokeWidth={RING_STROKE} fill="none"
                   strokeDasharray={mainCirc}
-                  strokeDashoffset={mainOffset}
+                  animatedProps={animatedProps}
                   strokeLinecap="round"
                   rotation="-90"
                   origin={`${RING_SIZE / 2}, ${RING_SIZE / 2}`}
@@ -287,19 +338,17 @@ export default function HomeScreen() {
                 <Text style={s.ringCalLabel}>{`of ${GOAL.calories.toLocaleString()} kcal`}</Text>
                 <View style={[s.ringBadge, { backgroundColor: ringColor + "22", borderColor: ringColor + "55" }]}>
                   <Text style={[s.ringBadgeText, { color: ringColor }]}>
-                    {`${Math.round((totals.calories / GOAL.calories) * 100)}% of goal`}
+                    {calPct >= 1 ? "Over Limit" : `${Math.round(calPct * 100)}%`}
                   </Text>
                 </View>
               </View>
+
             </View>
 
-            {/* Right stats */}
             <View style={s.heroStats}>
               <View style={s.heroStatBlock}>
                 <Text style={s.heroStatLabel}>REMAINING</Text>
-                <Text style={[s.heroStatBig, { color: ringColor }]}>
-                  {Math.max(0, GOAL.calories - totals.calories).toLocaleString()}
-                </Text>
+                <Text style={s.heroStatBig}>{Math.max(0, GOAL.calories - totals.calories).toLocaleString()}</Text>
                 <Text style={s.heroStatSub}>kcal left</Text>
               </View>
               <View style={s.heroStatDivider} />
@@ -321,10 +370,9 @@ export default function HomeScreen() {
 
         {/* ── SCAN MEAL CTA ── */}
         <Animated.View style={[{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }, s.ctaWrap]}>
-          <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-            <TouchableOpacity
+          <Reanimated.View style={pulseStyle}>
+            <PressScale
               style={s.ctaBtn}
-              activeOpacity={0.88}
               onPress={() => navigation.navigate("Camera")}
             >
               {/* Scan line animation */}
@@ -332,30 +380,30 @@ export default function HomeScreen() {
                 <Animated.View style={[s.ctaScanLine, { transform: [{ translateY: scanY }] }]} />
               </View>
               <Text style={s.ctaIcon}>📷</Text>
-              <View>
+              <View style={s.ctaTitleContainer}>
                 <Text style={s.ctaTitle}>Scan Meal</Text>
                 <Text style={s.ctaSub}>AI identifies food instantly</Text>
               </View>
               <View style={s.ctaArrow}>
                 <Text style={s.ctaArrowText}>→</Text>
               </View>
-            </TouchableOpacity>
-          </Animated.View>
+            </PressScale>
+          </Reanimated.View>
 
           {/* Secondary actions */}
           <View style={s.secondaryRow}>
-            <TouchableOpacity style={s.secondaryBtn} activeOpacity={0.75}>
+            <PressScale style={s.secondaryBtn}>
               <Text style={s.secondaryIcon}>🎙️</Text>
               <Text style={s.secondaryLabel}>Voice Log</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.secondaryBtn} activeOpacity={0.75}>
+            </PressScale>
+            <PressScale style={s.secondaryBtn}>
               <Text style={s.secondaryIcon}>🏷️</Text>
               <Text style={s.secondaryLabel}>Barcode</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.secondaryBtn} activeOpacity={0.75}>
+            </PressScale>
+            <PressScale style={s.secondaryBtn}>
               <Text style={s.secondaryIcon}>✏️</Text>
               <Text style={s.secondaryLabel}>Manual</Text>
-            </TouchableOpacity>
+            </PressScale>
           </View>
         </Animated.View>
 
@@ -424,7 +472,7 @@ export default function HomeScreen() {
         )}
 
         {/* ── AI COACH ── */}
-        <Animated.View style={[s.coachCard, { opacity: fadeAnim }]}>
+        <Reanimated.View style={[s.coachCard, { opacity: fadeAnim as any }, coachStyle]}>
           <View style={s.coachRow}>
             <View style={s.coachOrb}>
               <Text style={{ fontSize: 14 }}>🤖</Text>
@@ -434,7 +482,7 @@ export default function HomeScreen() {
               <Text style={s.coachTip}>{coachTip}</Text>
             </View>
           </View>
-        </Animated.View>
+        </Reanimated.View>
 
         <View style={{ height: 110 }} />
       </ScrollView>
@@ -443,26 +491,26 @@ export default function HomeScreen() {
 }
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
-const CARD_BG = "#0c0c1a";
-const BORDER = "rgba(255,255,255,0.07)";
+const CARD_BG = "#0D0D1A";
+const BORDER = "rgba(127,119,221,0.18)";
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#06060f" },
-  scroll: { paddingHorizontal: 18, paddingTop: 28 },
+  screen: { flex: 1, backgroundColor: "#050510" },
+  scroll: { paddingHorizontal: 20, paddingTop: 28 },
 
   orb: { position: "absolute" },
 
   // Header
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 22 },
-  dateStr: { fontSize: 11, color: "rgba(255,255,255,0.35)", fontWeight: "700", letterSpacing: 2, textTransform: "uppercase" },
+  dateStr: { fontSize: 10, color: "rgba(255,255,255,0.35)", fontWeight: "700", letterSpacing: 2, textTransform: "uppercase" },
   greeting: { fontSize: 26, color: "#fff", fontWeight: "900", letterSpacing: -0.5, marginTop: 3 },
   avatar: { width: 46, height: 46, borderRadius: 23, borderWidth: 2, borderColor: "#7c3aed" },
-  avatarBadge: { position: "absolute", bottom: 1, right: 1, width: 11, height: 11, borderRadius: 6, backgroundColor: "#34d399", borderWidth: 2, borderColor: "#06060f" },
+  avatarBadge: { position: "absolute", bottom: 1, right: 1, width: 11, height: 11, borderRadius: 6, backgroundColor: "#34d399", borderWidth: 2, borderColor: "#050510" },
 
   // Hero card
   heroCard: {
     backgroundColor: CARD_BG,
-    borderRadius: 28,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: BORDER,
     padding: 20,
@@ -485,7 +533,7 @@ const s = StyleSheet.create({
 
   heroStats: { flex: 1, paddingLeft: 20, gap: 14 },
   heroStatBlock: { gap: 2 },
-  heroStatLabel: { fontSize: 8, color: "rgba(255,255,255,0.35)", fontWeight: "800", letterSpacing: 1.5, textTransform: "uppercase" },
+  heroStatLabel: { fontSize: 10, color: "rgba(255,255,255,0.35)", fontWeight: "700", letterSpacing: 1.5, textTransform: "uppercase" },
   heroStatBig: { fontSize: 28, fontWeight: "900", letterSpacing: -1 },
   heroStatSub: { fontSize: 10, color: "rgba(255,255,255,0.3)", fontWeight: "500" },
   heroStatDivider: { height: 1, backgroundColor: BORDER },
@@ -495,7 +543,7 @@ const s = StyleSheet.create({
   macroPill: {
     flex: 1,
     backgroundColor: CARD_BG,
-    borderRadius: 18,
+    borderRadius: 22,
     borderWidth: 1,
     padding: 12,
   },
@@ -543,7 +591,7 @@ const s = StyleSheet.create({
   secondaryBtn: {
     flex: 1,
     backgroundColor: CARD_BG,
-    borderRadius: 16,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: BORDER,
     padding: 14,
@@ -556,7 +604,7 @@ const s = StyleSheet.create({
   // Card
   card: {
     backgroundColor: CARD_BG,
-    borderRadius: 24,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: BORDER,
     padding: 18,
@@ -565,7 +613,7 @@ const s = StyleSheet.create({
   cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
 
   // Section headers
-  sectionTitle: { fontSize: 11, color: "rgba(255,255,255,0.4)", fontWeight: "800", textTransform: "uppercase", letterSpacing: 2 },
+  sectionTitle: { fontSize: 10, color: "rgba(255,255,255,0.4)", fontWeight: "800", textTransform: "uppercase", letterSpacing: 2 },
   sectionHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
   sectionCount: { fontSize: 11, color: "rgba(255,255,255,0.3)", fontWeight: "600" },
 
@@ -590,7 +638,7 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: CARD_BG,
-    borderRadius: 20,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: BORDER,
     padding: 14,
@@ -603,7 +651,7 @@ const s = StyleSheet.create({
   stripe: { flexDirection: "row", height: 3, width: 64, borderRadius: 2, overflow: "hidden", marginTop: 7, backgroundColor: "rgba(255,255,255,0.05)" },
   stripeP: { height: "100%", backgroundColor: "#60a5fa" },
   stripeC: { height: "100%", backgroundColor: "#34d399" },
-  stripeF: { flex: 1, backgroundColor: "#f472b6" },
+  stripeF: { height: "100%", backgroundColor: "#f472b6" },
   mealRight: { alignItems: "flex-end", marginRight: 4 },
   mealCal: { fontSize: 18, fontWeight: "900", color: "#fff" },
   mealCalUnit: { fontSize: 9, color: "rgba(255,255,255,0.35)", fontWeight: "600" },
@@ -611,7 +659,7 @@ const s = StyleSheet.create({
   deleteX: { fontSize: 13, color: "#ef444488" },
 
   // Empty
-  emptyState: { backgroundColor: CARD_BG, borderRadius: 20, borderWidth: 1, borderColor: BORDER, padding: 32, alignItems: "center", marginBottom: 14 },
+  emptyState: { backgroundColor: CARD_BG, borderRadius: 22, borderWidth: 1, borderColor: BORDER, padding: 32, alignItems: "center", marginBottom: 14 },
   emptyIcon: { fontSize: 36, marginBottom: 10 },
   emptyTitle: { fontSize: 15, color: "#fff", fontWeight: "800" },
   emptySub: { fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 4 },
@@ -623,10 +671,15 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(124,58,237,0.2)",
     padding: 16,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 4,
   },
   coachRow: { flexDirection: "row", gap: 12, alignItems: "flex-start" },
   coachOrb: { width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(124,58,237,0.25)", alignItems: "center", justifyContent: "center" },
   coachTextWrap: { flex: 1 },
   coachLabel: { fontSize: 9, color: "#a855f7", fontWeight: "800", letterSpacing: 2, marginBottom: 5 },
   coachTip: { fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 20, fontWeight: "500" },
+  ctaTitleContainer: { flex: 1 },
 });

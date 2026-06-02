@@ -13,15 +13,37 @@ export default function ProfileScreen() {
 
         {/* User Card */}
         <View style={styles.profileCard}>
-          <Image
-            source={{ uri: "https://i.pravatar.cc/120?img=33" }}
-            style={styles.avatar}
-          />
+          <View style={styles.avatarRingOuter}>
+            <View style={styles.avatarRingInner}>
+              <Image
+                source={{ uri: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256" }}
+                style={styles.avatar}
+              />
+            </View>
+          </View>
           <Text style={styles.name}>Madhav Soni</Text>
           <Text style={styles.username}>@madhavsoni</Text>
           
           <View style={styles.badge}>
             <Text style={styles.badgeText}>👑 PREMIUM MEMBER</Text>
+          </View>
+
+          {/* Stat Grid */}
+          <View style={styles.statsGrid}>
+            <View style={styles.statGridCol}>
+              <Text style={styles.statGridNum}>2,000</Text>
+              <Text style={styles.statGridLabel}>KCAL GOAL</Text>
+            </View>
+            <View style={styles.statGridDivider} />
+            <View style={styles.statGridCol}>
+              <Text style={styles.statGridNum}>14</Text>
+              <Text style={styles.statGridLabel}>STREAK</Text>
+            </View>
+            <View style={styles.statGridDivider} />
+            <View style={styles.statGridCol}>
+              <Text style={styles.statGridNum}>32</Text>
+              <Text style={styles.statGridLabel}>LOGGED</Text>
+            </View>
           </View>
         </View>
 
@@ -49,6 +71,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Preferences */}
         <Text style={styles.sectionTitle}>App Preferences</Text>
         <View style={styles.infoCard}>
           <TouchableOpacity style={styles.infoRow}>
@@ -76,18 +99,18 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#05050a" },
-  scroll: { paddingHorizontal: 24, paddingTop: 60, paddingBottom: 100 },
+  screen: { flex: 1, backgroundColor: "#050510" },
+  scroll: { paddingHorizontal: 20, paddingTop: 60, paddingBottom: 100 },
   header: { marginBottom: 24 },
   headerTitle: { fontSize: 36, color: "#fff", fontWeight: "800", letterSpacing: -1 },
 
   profileCard: {
-    backgroundColor: "#0f0f1a",
-    borderRadius: 24,
+    backgroundColor: "#0D0D1A",
+    borderRadius: 22,
     padding: 24,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(124, 58, 237, 0.15)",
+    borderColor: "rgba(127, 119, 221, 0.18)",
     marginBottom: 28,
     shadowColor: "#7c3aed",
     shadowOffset: { width: 0, height: 8 },
@@ -95,13 +118,23 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 6,
   },
-  avatar: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    borderWidth: 3,
-    borderColor: "#7c3aed",
+  avatarRingOuter: {
+    padding: 4,
+    borderRadius: 99,
+    borderWidth: 1.5,
+    borderColor: "rgba(124, 58, 237, 0.25)",
     marginBottom: 16,
+  },
+  avatarRingInner: {
+    padding: 4,
+    borderRadius: 99,
+    borderWidth: 1.5,
+    borderColor: "#7c3aed",
+  },
+  avatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
   name: {
     color: "#fff",
@@ -130,19 +163,19 @@ const styles = StyleSheet.create({
   },
 
   sectionTitle: {
-    fontSize: 12,
+    fontSize: 10,
     color: "rgba(255, 255, 255, 0.45)",
     fontWeight: "700",
     textTransform: "uppercase",
-    letterSpacing: 1.5,
+    letterSpacing: 2,
     marginBottom: 12,
     marginLeft: 4,
   },
   infoCard: {
-    backgroundColor: "#0f0f1a",
-    borderRadius: 20,
+    backgroundColor: "#0D0D1A",
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: "rgba(124, 58, 237, 0.1)",
+    borderColor: "rgba(127, 119, 221, 0.18)",
     paddingHorizontal: 16,
     marginBottom: 24,
   },
@@ -169,14 +202,14 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: "rgba(124, 58, 237, 0.08)",
+    backgroundColor: "rgba(127, 119, 221, 0.12)",
   },
   logoutBtn: {
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 16,
     backgroundColor: "rgba(239, 68, 68, 0.08)",
-    borderRadius: 16,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: "rgba(239, 68, 68, 0.15)",
     marginTop: 12,
@@ -185,5 +218,35 @@ const styles = StyleSheet.create({
     color: "#f87171",
     fontSize: 15,
     fontWeight: "700",
+  },
+
+  statsGrid: {
+    flexDirection: "row",
+    marginTop: 24,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(127, 119, 221, 0.18)",
+    width: "100%",
+  },
+  statGridCol: {
+    flex: 1,
+    alignItems: "center",
+    gap: 4,
+  },
+  statGridDivider: {
+    width: 1,
+    backgroundColor: "rgba(127, 119, 221, 0.18)",
+    marginVertical: 4,
+  },
+  statGridNum: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "800",
+  },
+  statGridLabel: {
+    color: "rgba(255, 255, 255, 0.4)",
+    fontSize: 9,
+    fontWeight: "700",
+    letterSpacing: 1,
   },
 });
