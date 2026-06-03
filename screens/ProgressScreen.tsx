@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TextInput,
   TouchableOpacity,
   ScrollView,
@@ -11,6 +10,7 @@ import {
   Keyboard,
   Dimensions,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, radius, spacing, typography, ui } from "../components/DesignSystem";
 import { useMealStore } from "../useMealStore";
 import { PressScale } from "../components/PressScale";

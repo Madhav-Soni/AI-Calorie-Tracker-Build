@@ -29,6 +29,8 @@ import OnboardingStep4 from "./screens/onboarding/OnboardingStep4";
 import OnboardingStep5 from "./screens/onboarding/OnboardingStep5";
 
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { useUserProfileStore } from "./store/userProfileStore";
+import { useMealStore, subscribeToUserMeals } from "./useMealStore";
 
 export type RootStackParamList = {
   Splash: undefined;
@@ -130,11 +132,32 @@ function TabNavigator() {
 }
 
 function AppNavigator() {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const profile = useUserProfileStore((s) => s.profile);
+  const loadingProfile = useUserProfileStore((s) => s.loading);
+  const subscribeToProfile = useUserProfileStore((s) => s.subscribeToProfile);
 
-  if (loading) {
+  React.useEffect(() => {
+    if (user) {
+      useMealStore.getState().setUserId(user.uid);
+      const unsubscribeProfile = subscribeToProfile(user.uid);
+      const unsubscribeMeals = subscribeToUserMeals(user.uid, (meals) => {
+        useMealStore.getState().syncMealsFromFirebase(meals);
+      });
+      return () => {
+        unsubscribeProfile();
+        unsubscribeMeals();
+      };
+    } else {
+      useMealStore.getState().setUserId(null);
+    }
+  }, [user]);
+
+  if (authLoading || (user && loadingProfile)) {
     return <SplashScreen navigation={null as any} />;
   }
+
+  const onboardingCompleted = profile?.onboardingCompleted || false;
 
   return (
     <Stack.Navigator id="StackNavigator" screenOptions={{ headerShown: false, animation: "slide_from_bottom" }}>
@@ -146,8 +169,8 @@ function AppNavigator() {
           <Stack.Screen name="Register" component={RegisterScreen} />
           <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
         </>
-      ) : (
-        // Main App Stack
+      ) : !onboardingCompleted ? (
+        // Onboarding Stack
         <>
           <Stack.Screen name="Onboarding" component={OnboardingStep1} />
           <Stack.Screen name="OnboardingStep1" component={OnboardingStep1} />
@@ -155,6 +178,11 @@ function AppNavigator() {
           <Stack.Screen name="OnboardingStep3" component={OnboardingStep3} />
           <Stack.Screen name="OnboardingStep4" component={OnboardingStep4} />
           <Stack.Screen name="OnboardingStep5" component={OnboardingStep5} />
+          <Stack.Screen name="Tabs" component={TabNavigator} options={{ animation: "none" }} />
+        </>
+      ) : (
+        // Main App Stack
+        <>
           <Stack.Screen name="Tabs" component={TabNavigator} options={{ animation: "none" }} />
           <Stack.Screen name="Camera" component={CameraScreen} />
           <Stack.Screen

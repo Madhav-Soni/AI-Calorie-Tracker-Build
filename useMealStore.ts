@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy } from "firebase/firestore";
+import { db } from "./firebase/config";
 
 export interface Meal {
   id: string;
@@ -43,13 +45,18 @@ interface MealStore {
   onboardingCompleted: boolean;
   userProfile: UserProfile | null;
   weightHistory: Array<{ date: string; weight: number }>;
-  addMeal: (meal: Omit<Meal, "id" | "loggedAt">) => void;
-  deleteMeal: (id: string) => void;
+  userId: string | null;
+  
+  // Actions
+  setUserId: (userId: string | null) => void;
+  addMeal: (meal: Omit<Meal, "id" | "loggedAt">) => Promise<void>;
+  deleteMeal: (id: string) => Promise<void>;
   getDailyTotals: (date?: string) => DailyTotals;
   completeOnboarding: (profile: UserProfile, calculatedGoals: UserGoals) => void;
   resetOnboarding: () => void;
   logWeight: (weight: number) => void;
   updateGoals: (goals: UserGoals) => void;
+  syncMealsFromFirebase: (meals: Meal[]) => void;
 }
 
 const toDateKey = (iso: string) => iso.slice(0, 10);
@@ -67,23 +74,58 @@ export const useMealStore = create<MealStore>()(
       onboardingCompleted: false,
       userProfile: null,
       weightHistory: [],
+      userId: null,
 
-      addMeal: (meal) =>
-        set((state) => ({
-          meals: [
-            ...state.meals,
-            {
-              ...meal,
-              id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-              loggedAt: new Date().toISOString(),
-            },
-          ],
-        })),
+      setUserId: (userId) => {
+        set({ userId });
+      },
 
-      deleteMeal: (id) =>
-        set((state) => ({
-          meals: state.meals.filter((m) => m.id !== id),
-        })),
+      addMeal: async (meal) => {
+        const uid = get().userId;
+        const newMeal: Meal = {
+          ...meal,
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          loggedAt: new Date().toISOString(),
+        };
+
+        if (uid) {
+          try {
+            // Save to Firebase Firestore
+            const mealRef = doc(db, "users", uid, "meals", newMeal.id);
+            await setDoc(mealRef, newMeal);
+          } catch (e) {
+            console.error("Error writing meal to Firestore:", e);
+          }
+        } else {
+          // Local fallback
+          set((state) => ({
+            meals: [...state.meals, newMeal],
+          }));
+        }
+      },
+
+      deleteMeal: async (id) => {
+        const uid = get().userId;
+        if (uid) {
+          try {
+            // Delete from Firebase Firestore
+            const mealRef = doc(db, "users", uid, "meals", id);
+            await deleteDoc(mealRef);
+            // Firestore listener will sync the deletion automatically
+          } catch (e) {
+            console.error("Error deleting meal from Firestore:", e);
+            // Fallback to local update on error
+            set((state) => ({
+              meals: state.meals.filter((m) => m.id !== id),
+            }));
+          }
+        } else {
+          // Local fallback
+          set((state) => ({
+            meals: state.meals.filter((m) => m.id !== id),
+          }));
+        }
+      },
 
       getDailyTotals: (date) => {
         const key = date ?? toDateKey(new Date().toISOString());
@@ -105,7 +147,6 @@ export const useMealStore = create<MealStore>()(
           userProfile: profile,
           goals: calculatedGoals,
           onboardingCompleted: true,
-          // Log initial weight into history
           weightHistory: [{ date: toDateKey(new Date().toISOString()), weight: profile.weight }],
         }),
 
@@ -126,9 +167,7 @@ export const useMealStore = create<MealStore>()(
       logWeight: (weight) =>
         set((state) => {
           const date = toDateKey(new Date().toISOString());
-          // Remove existing weight log for today to prevent duplicates
           const filtered = state.weightHistory.filter((w) => w.date !== date);
-          // If userProfile exists, update current weight in profile too
           const updatedProfile = state.userProfile
             ? { ...state.userProfile, weight }
             : null;
@@ -142,10 +181,41 @@ export const useMealStore = create<MealStore>()(
 
       updateGoals: (goals) =>
         set({ goals }),
+
+      syncMealsFromFirebase: (meals) => {
+        set({ meals });
+      },
     }),
     {
       name: "meal-tracker-store",
       storage: createJSONStorage(() => AsyncStorage),
+      partialize: (s) => ({
+        meals: s.meals,
+        goals: s.goals,
+        onboardingCompleted: s.onboardingCompleted,
+        userProfile: s.userProfile,
+        weightHistory: s.weightHistory,
+      }),
     }
   )
 );
+
+// Listener setup for Firestore meals sync
+export function subscribeToUserMeals(userId: string, onUpdate: (meals: Meal[]) => void) {
+  const mealsCol = collection(db, "users", userId, "meals");
+  const q = query(mealsCol, orderBy("loggedAt", "desc"));
+  
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const meals: Meal[] = [];
+      snapshot.forEach((doc) => {
+        meals.push(doc.data() as Meal);
+      });
+      onUpdate(meals);
+    },
+    (err) => {
+      console.error("Error subscribing to meals:", err);
+    }
+  );
+}

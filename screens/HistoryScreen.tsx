@@ -1,8 +1,9 @@
 import React, { useEffect, useRef } from "react";
 import {
   View, Text, ScrollView, StatusBar, Animated,
-  Dimensions, StyleSheet, SafeAreaView, Easing, TouchableOpacity,
+  Dimensions, StyleSheet, Easing, TouchableOpacity,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, radius, shadow, spacing, typography, ui } from "../components/DesignSystem";
 
 const { width: W } = Dimensions.get("window");

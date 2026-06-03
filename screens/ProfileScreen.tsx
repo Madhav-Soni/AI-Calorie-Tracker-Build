@@ -4,13 +4,13 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   StatusBar,
   Animated,
   Easing,
   TouchableOpacity,
   Alert,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, radius, shadow, spacing, typography, ui } from "../components/DesignSystem";
 import { PressScale } from "../components/PressScale";
 import { useUserProfileStore } from '../store/userProfileStore';
@@ -52,7 +52,7 @@ function PrefRow({ label, value, onPress, isDestructive = false }: { label: stri
 }
 
 export default function ProfileScreen({ navigation }: any) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const profile = useUserProfileStore((s) => s.profile);
   const loading = useUserProfileStore((s) => s.loading);
   
@@ -80,8 +80,11 @@ export default function ProfileScreen({ navigation }: any) {
   }, [user]);
 
   const handleLogout = async () => {
-    const { logout } = useAuth();
-    await logout();
+    try {
+      await logout();
+    } catch (e: any) {
+      console.error("Logout Error:", e);
+    }
   };
 
   const activityLevelLabel = profile?.activityLevel

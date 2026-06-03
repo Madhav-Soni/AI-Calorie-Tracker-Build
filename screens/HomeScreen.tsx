@@ -7,10 +7,10 @@ import {
   Dimensions,
   Animated,
   StatusBar,
-  SafeAreaView,
   StyleSheet,
   Easing,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -240,7 +240,7 @@ export default function HomeScreen() {
         <Animated.View style={[s.header, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           <View>
             <Text style={s.dateStr}>{dateStr}</Text>
-            <Text style={s.greeting}>{greeting}</Text>
+            <Text style={s.greeting}>{`${greeting}, ${profile?.name || "User"}`}</Text>
           </View>
           <TouchableOpacity
             style={s.settingsBtn}
