@@ -8,11 +8,13 @@ import {
   StatusBar,
   Animated,
   Easing,
+  TouchableOpacity,
   Alert,
 } from "react-native";
 import { colors, radius, shadow, spacing, typography, ui } from "../components/DesignSystem";
 import { PressScale } from "../components/PressScale";
-import { useMealStore } from "../useMealStore";
+import { useUserProfileStore } from '../store/userProfileStore';
+import { useAuth } from '../contexts/AuthContext';
 
 function StatPill({ value, label, color }: { value: string; label: string; color: string }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -49,17 +51,13 @@ function PrefRow({ label, value, onPress, isDestructive = false }: { label: stri
   );
 }
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }: any) {
+  const { user } = useAuth();
+  const profile = useUserProfileStore((s) => s.profile);
+  const loading = useUserProfileStore((s) => s.loading);
+  
   const headerAnim = useRef(new Animated.Value(0)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
-
-  const userProfile = useMealStore((s) => s.userProfile);
-  const GOAL = useMealStore((s) => s.goals);
-  const resetOnboarding = useMealStore((s) => s.resetOnboarding);
-  const weightHistory = useMealStore((s) => s.weightHistory);
-  const getDailyTotals = useMealStore((s) => s.getDailyTotals);
-
-  const totals = getDailyTotals();
 
   useEffect(() => {
     Animated.timing(headerAnim, { toValue: 1, duration: 700, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
@@ -73,22 +71,22 @@ export default function ProfileScreen() {
 
   const avatarGlow = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.16, 0.3] });
 
-  const handleReset = () => {
-    Alert.alert(
-      "Reset App Data",
-      "Are you sure you want to clear your goals, profile, and all logged meals? This cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Reset Everything", style: "destructive", onPress: () => resetOnboarding() }
-      ]
-    );
+  // Fetch profile on mount
+  useEffect(() => {
+    if (user) {
+      const unsubscribe = useUserProfileStore.getState().subscribeToProfile(user.uid);
+      return () => unsubscribe();
+    }
+  }, [user]);
+
+  const handleLogout = async () => {
+    const { logout } = useAuth();
+    await logout();
   };
 
-  const currentWeight = userProfile?.weight || (weightHistory.length > 0 ? weightHistory[weightHistory.length - 1].weight : "--");
-  const streak = weightHistory.length > 0 ? Math.min(30, weightHistory.length) : 0;
-  const activityLevelLabel = userProfile?.activityLevel
-    ? userProfile.activityLevel.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase())
-    : "Lightly Active";
+  const activityLevelLabel = profile?.activityLevel
+    ? profile.activityLevel.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase())
+    : "Not Set";
 
   return (
     <SafeAreaView style={s.screen}>
@@ -109,26 +107,26 @@ export default function ProfileScreen() {
           </View>
 
           <Text style={s.statusText}>
-            {userProfile?.goal
-              ? `${userProfile.goal.replace("_", " ").toUpperCase()} • ACTIVE JOURNEY`
-              : "MAINTAIN • ACTIVE JOURNEY"}
+            {profile?.goal
+              ? `${profile.goal.replace("_", " ").toUpperCase()} • ACTIVE JOURNEY`
+              : "YOUR FITNESS JOURNEY"}
           </Text>
 
           {/* Stats row */}
           <View style={s.statsRow}>
-            <StatPill value={`${streak}`} label="STREAK" color={colors.amber} />
-            <StatPill value={`${weightHistory.length}`} label="WEIGHT LOGS" color={colors.purple} />
-            <StatPill value={`${currentWeight}`} label="CURRENT (KG)" color={colors.green} />
+            <StatPill value="0" label="STREAK" color={colors.amber} />
+            <StatPill value="0" label="DAYS LOGGED" color={colors.purple} />
+            <StatPill value={profile?.weight?.toString() || "--"} label="WEIGHT (KG)" color={colors.green} />
           </View>
         </View>
 
         {/* Goals & Plan */}
         <Text style={s.sectionLabel}>GOALS & PLAN</Text>
         <View style={s.card}>
-          <GoalRow label="Daily Calories" value={`${GOAL.calories.toLocaleString()} kcal`} accent={colors.violet} />
-          <GoalRow label="Target Protein" value={`${GOAL.protein}g`} accent={colors.blue} />
-          <GoalRow label="Target Carbs" value={`${GOAL.carbs}g`} accent={colors.green} />
-          <GoalRow label="Target Fat" value={`${GOAL.fat}g`} accent={colors.pink} />
+          <GoalRow label="Daily Calories" value={`${profile?.calorieTarget?.toLocaleString() || '0'} kcal`} accent={colors.violet} />
+          <GoalRow label="Target Protein" value={`${profile?.proteinTarget || '0'}g`} accent={colors.blue} />
+          <GoalRow label="Target Carbs" value={`${profile?.carbTarget || '0'}g`} accent={colors.green} />
+          <GoalRow label="Target Fat" value={`${profile?.fatTarget || '0'}g`} accent={colors.pink} />
         </View>
 
         {/* User Details */}
@@ -136,16 +134,16 @@ export default function ProfileScreen() {
         <View style={s.card}>
           <View style={s.detailRow}>
             <Text style={s.detailLabel}>Age</Text>
-            <Text style={s.detailValue}>{userProfile?.age ? `${userProfile.age} yrs` : "--"}</Text>
+            <Text style={s.detailValue}>{profile?.age ? `${profile.age} yrs` : "--"}</Text>
           </View>
           <View style={s.prefDivider} />
           <View style={s.detailRow}>
             <Text style={s.detailLabel}>Height</Text>
-            <Text style={s.detailValue}>{userProfile?.height ? `${userProfile.height} cm` : "--"}</Text>
+            <Text style={s.detailValue}>{profile?.height ? `${profile.height} cm` : "--"}</Text>
           </View>
           <View style={s.prefDivider} />
           <View style={s.detailRow}>
-            <Text style={s.detailLabel}>Activity Multiplier</Text>
+            <Text style={s.detailLabel}>Activity Level</Text>
             <Text style={s.detailValue}>{activityLevelLabel}</Text>
           </View>
         </View>
@@ -153,11 +151,13 @@ export default function ProfileScreen() {
         {/* App Preferences */}
         <Text style={s.sectionLabel}>APP PREFERENCES</Text>
         <View style={s.card}>
-          <PrefRow label="AI Coach Personality" value="Encouraging" />
+          <PrefRow label="Diet Preference" value={profile?.dietPreference?.replace('_', ' ').toUpperCase() || 'NO RESTRICTION'} />
           <View style={s.prefDivider} />
           <PrefRow label="Units" value="Metric (g, kcal, kg)" />
           <View style={s.prefDivider} />
-          <PrefRow label="Reset App Data" value="Clear all" onPress={handleReset} isDestructive={true} />
+          <TouchableOpacity onPress={handleLogout} style={s.logoutButton}>
+            <Text style={s.logoutText}>Sign Out</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={{ height: 100 }} />
@@ -274,4 +274,6 @@ const s = StyleSheet.create({
   prefLabel: { fontSize: 13, color: colors.textMuted, fontWeight: "600" },
   prefValue: { fontSize: 13, color: colors.violet, fontWeight: "700" },
   prefDivider: { height: 0.5, backgroundColor: "rgba(255,255,255,0.04)", marginHorizontal: 16 },
+  logoutButton: { paddingVertical: 14, paddingHorizontal: 16, alignItems: "center" },
+  logoutText: { fontSize: 14, color: colors.red, fontWeight: "700" },
 });

@@ -9,6 +9,7 @@ export interface FoodItem {
   protein: number;
   carbs: number;
   fat: number;
+  confidence?: number;
 }
 
 export interface AnalysisResult {
@@ -17,6 +18,13 @@ export interface AnalysisResult {
   totalProtein: number;
   totalCarbs: number;
   totalFat: number;
+  validImage?: boolean;
+  reason?: string;
+  debug?: {
+    rawAIResponse: string;
+    parsedFoods: any[];
+    nutritionMappingSource: string;
+  };
 }
 
 export type AnalysisStatus = "idle" | "uploading" | "analyzing" | "success" | "error";
@@ -126,6 +134,7 @@ export async function analyzeFood(
           protein: Number(f.protein) || 0,
           carbs: Number(f.carbs ?? f.carbohydrates) || 0,
           fat: Number(f.fat) || 0,
+          confidence: f.confidence !== undefined ? Number(f.confidence) : undefined,
         });
       }
     }
@@ -137,6 +146,9 @@ export async function analyzeFood(
     totalProtein: Number(raw.totalProtein ?? raw.total_protein) || 0,
     totalCarbs: Number(raw.totalCarbs ?? raw.total_carbs) || 0,
     totalFat: Number(raw.totalFat ?? raw.total_fat) || 0,
+    validImage: raw.validImage !== undefined ? Boolean(raw.validImage) : undefined,
+    reason: raw.reason !== undefined ? String(raw.reason) : undefined,
+    debug: raw.debug !== undefined ? raw.debug : undefined,
   };
 
   console.log("[FRONTEND RAW RESULT]", result);

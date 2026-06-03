@@ -17,7 +17,6 @@ import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../App";
 import { useAnalyzeFood } from "../hooks/useAnalyzeFood";
-import type { FoodItem } from "../services/foodAnalysis";
 import { useMealStore } from "../useMealStore";
 import { colors, radius, shadow, spacing, typography, ui } from "../components/DesignSystem";
 
@@ -99,15 +98,17 @@ export default function FoodAnalysisScreen() {
   const { state, analyze, hydrate } = useAnalyzeFood();
   const addMeal = useMealStore((s) => s.addMeal);
 
-  // Correction UX configuration states
+  // Configuration and confirm flow states
   const [servingSize, setServingSize] = useState<number>(1.0);
-  const [category, setCategory] = useState<string>("Lunch"); // Breakfast | Lunch | Dinner | Snack
+  const [category, setCategory] = useState<string>("Lunch");
   const [isLogged, setIsLogged] = useState(false);
+  const [showDebug, setShowDebug] = useState(false);
 
   const toastAnim = useRef(new Animated.Value(0)).current;
 
   const isLoading = state.status === "uploading" || state.status === "analyzing";
   const isSuccess = state.status === "success" && !!state.data;
+  const isValidationFailed = isSuccess && state.data && state.data.validImage === false;
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -175,8 +176,7 @@ export default function FoodAnalysisScreen() {
     setIsLogged(true);
     const foodsList = Array.isArray(d.foods) ? d.foods : [];
     
-    // Scale macros and calories by serving size modifier
-    const name = foodsList.map((f: FoodItem) => f.name).join(", ") || "AI Scanned Meal";
+    const name = foodsList.map((f: any) => f.name).join(", ") || "AI Scanned Meal";
     const calories = Math.round((Number(d.totalCalories) || 0) * servingSize);
     const protein = Math.round((Number(d.totalProtein) || 0) * servingSize);
     const carbs = Math.round((Number(d.totalCarbs) || 0) * servingSize);
@@ -232,10 +232,18 @@ export default function FoodAnalysisScreen() {
         )}
 
         {/* Success flash */}
-        {isSuccess && (
+        {isSuccess && !isValidationFailed && (
           <Animated.View style={[s.successBadge, { transform: [{ scale: successScaleAnim }] }]}>
             <Text style={s.successIcon}>✓</Text>
             <Text style={s.successText}>Analysis Complete</Text>
+          </Animated.View>
+        )}
+
+        {/* Invalid Image Quality Badge */}
+        {isValidationFailed && (
+          <Animated.View style={[s.successBadge, { borderColor: colors.red, backgroundColor: "rgba(248,113,113,0.12)", transform: [{ scale: successScaleAnim }] }]}>
+            <Text style={[s.successIcon, { color: colors.red }]}>⚠️</Text>
+            <Text style={[s.successText, { color: colors.red }]}>Verification Failed</Text>
           </Animated.View>
         )}
 
@@ -275,11 +283,34 @@ export default function FoodAnalysisScreen() {
           </View>
         )}
 
+        {/* Invalid Image Rejection UX */}
+        {isValidationFailed && state.data && (() => {
+          const reason = state.data.reason || "Photo is blurry, a screen screenshot, or contains insufficient light.";
+          return (
+            <Animated.View style={[s.errorBox, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+              <Text style={{ fontSize: 40, marginBottom: 14 }}>📸</Text>
+              <Text style={s.errorTitle}>Take a clearer meal photo</Text>
+              <Text style={s.errorMsg}>Our verification system rejected the photo.{"\n"}{reason}</Text>
+              
+              <TouchableOpacity
+                style={s.logBtn}
+                activeOpacity={0.8}
+                onPress={() => navigation.replace("Camera")}
+              >
+                <Text style={s.logBtnText}>Retake Photo</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={s.discardBtn} onPress={() => navigation.goBack()} activeOpacity={0.7}>
+                <Text style={s.discardText}>Cancel</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          );
+        })()}
+
         {/* Success results */}
-        {isSuccess && state.data && (() => {
+        {isSuccess && !isValidationFailed && state.data && (() => {
           const d = state.data;
           
-          // Calculate dynamically based on serving size
           const currentCalories = Math.round(d.totalCalories * servingSize);
           const currentProtein = Math.round(d.totalProtein * servingSize);
           const currentCarbs = Math.round(d.totalCarbs * servingSize);
@@ -287,6 +318,9 @@ export default function FoodAnalysisScreen() {
 
           const maxMacro = Math.max(currentProtein, currentCarbs, currentFat, 1);
           const confidence = Math.min(98, Math.max(72, 86 + (Array.isArray(d.foods) ? d.foods.length * 3 : 0)));
+
+          // Check for low confidence warning
+          const hasLowConfidence = d.foods.some((f: any) => typeof f.confidence === "number" && f.confidence < 0.65);
 
           return (
             <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
@@ -301,6 +335,15 @@ export default function FoodAnalysisScreen() {
                   <Text style={s.confidenceLabel}>confidence</Text>
                 </View>
               </View>
+
+              {/* Confidence warnings */}
+              {hasLowConfidence && (
+                <View style={s.warningCard}>
+                  <Text style={s.warningText}>
+                    ⚠️ Not confident. Please verify portions and details.
+                  </Text>
+                </View>
+              )}
 
               {/* Serving Size Selector */}
               <Text style={s.sectionLabel}>SERVING SIZE</Text>
@@ -363,11 +406,12 @@ export default function FoodAnalysisScreen() {
                 </View>
               ) : (
                 <>
-                  {d.foods.map((item: FoodItem, i: number) => {
+                  {d.foods.map((item: any, i: number) => {
                     const itemCal = Math.round(item.calories * servingSize);
                     const itemPro = Math.round(item.protein * servingSize);
                     const itemCar = Math.round(item.carbs * servingSize);
                     const itemFat = Math.round(item.fat * servingSize);
+                    const itemConfidence = typeof item.confidence === "number" ? Math.round(item.confidence * 100) : null;
 
                     return (
                       <View key={i} style={s.foodCard}>
@@ -375,7 +419,16 @@ export default function FoodAnalysisScreen() {
                         <View style={s.foodCardInner}>
                           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
                             <View style={{ flex: 1, marginRight: 12 }}>
-                              <Text style={s.foodName}>{item.name}</Text>
+                              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                                <Text style={s.foodName}>{item.name}</Text>
+                                {itemConfidence !== null && (
+                                  <View style={[s.miniConfBadge, itemConfidence < 65 ? { backgroundColor: "rgba(248,113,113,0.12)", borderColor: "rgba(248,113,113,0.2)" } : null]}>
+                                    <Text style={[s.miniConfText, itemConfidence < 65 ? { color: colors.red } : null]}>
+                                      {itemConfidence}% match
+                                    </Text>
+                                  </View>
+                                )}
+                              </View>
                               <Text style={s.foodPortion}>{item.portion} ({servingSize}x serving)</Text>
                             </View>
                             <View style={s.foodCalBadge}>
@@ -431,6 +484,33 @@ export default function FoodAnalysisScreen() {
                   <Text style={[s.secondaryActionText, { color: colors.textMuted }]}>Cancel</Text>
                 </TouchableOpacity>
               </View>
+
+              {/* Developer Debug Panel */}
+              {d.debug && (
+                <View style={s.debugPanel}>
+                  <TouchableOpacity
+                    style={s.debugHeader}
+                    onPress={() => setShowDebug(!showDebug)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={s.debugTitle}>🔧 Developer Debug Panel</Text>
+                    <Text style={s.debugToggle}>{showDebug ? "Collapse" : "Expand"}</Text>
+                  </TouchableOpacity>
+                  {showDebug && (
+                    <View style={s.debugContent}>
+                      <Text style={s.debugLabel}>Nutrition Mapping Sources:</Text>
+                      <Text style={s.debugCode}>{d.debug.nutritionMappingSource}</Text>
+                      
+                      <Text style={[s.debugLabel, { marginTop: 10 }]}>Parsed Vision Foods:</Text>
+                      <Text style={s.debugCode}>{JSON.stringify(d.debug.parsedFoods, null, 2)}</Text>
+                      
+                      <Text style={[s.debugLabel, { marginTop: 10 }]}>Raw AI Output:</Text>
+                      <Text style={s.debugCode}>{d.debug.rawAIResponse}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+
             </Animated.View>
           );
         })()}
@@ -496,7 +576,7 @@ const s = StyleSheet.create({
   shimmerTotals: { flexDirection: "row", gap: 8, marginBottom: 10 },
 
   // Error
-  errorBox: { alignItems: "center", paddingTop: 32 },
+  errorBox: { alignItems: "center", paddingTop: 32, paddingBottom: 24 },
   errorTitle: { color: "#fff", fontSize: 20, fontWeight: "900", marginBottom: 8 },
   errorMsg: { color: "rgba(255,255,255,0.4)", fontSize: 13, textAlign: "center",
     lineHeight: 20, marginBottom: 28 },
@@ -526,6 +606,22 @@ const s = StyleSheet.create({
     letterSpacing: 1, textTransform: "uppercase", marginTop: 4 },
   macrosGroup: { flex: 1, gap: 6 },
 
+  // Warning Card
+  warningCard: {
+    backgroundColor: "rgba(250,204,21,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(250,204,21,0.25)",
+    borderRadius: radius.md,
+    padding: 12,
+    marginBottom: 16,
+  },
+  warningText: {
+    color: colors.amber,
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 18,
+  },
+
   // Macro bar card
   card: { backgroundColor: colors.panelDeep, borderRadius: radius.xl, borderWidth: 1, borderColor: BORDER, padding: 17, marginBottom: 16, ...shadow.card },
   macroBarCard: { backgroundColor: colors.panelDeep, borderRadius: radius.xl, borderWidth: 1,
@@ -533,9 +629,6 @@ const s = StyleSheet.create({
 
   sectionLabel: { ...typography.sectionLabel, marginBottom: 10, marginTop: 4 },
   emptyGlyph: { fontSize: 24, marginBottom: 8, color: colors.violet, fontWeight: "900" },
-  detectedChipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
-  detectedChip: { ...ui.chip, maxWidth: "48%", backgroundColor: "rgba(168,85,247,0.1)", borderColor: "rgba(168,85,247,0.24)" },
-  detectedChipText: { color: colors.violet, fontSize: 11, fontWeight: "800" },
 
   // Food cards
   foodCard: { backgroundColor: colors.panelDeep, borderRadius: radius.xl, borderWidth: 1,
@@ -555,6 +648,20 @@ const s = StyleSheet.create({
   foodMacroVal: { fontSize: 13, fontWeight: "800" },
   foodMacroKey: { color: "rgba(255,255,255,0.3)", fontSize: 9, fontWeight: "600",
     textTransform: "uppercase", letterSpacing: 0.5, marginTop: 2 },
+  
+  miniConfBadge: {
+    backgroundColor: "rgba(52,211,153,0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(52,211,153,0.22)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  miniConfText: {
+    color: colors.green,
+    fontSize: 9,
+    fontWeight: "800",
+  },
 
   // Actions
   logBtn: { backgroundColor: colors.purple, borderRadius: radius.xl, paddingVertical: 16,
@@ -565,6 +672,8 @@ const s = StyleSheet.create({
   secondaryActionBtn: { flex: 1, backgroundColor: colors.panelSoft, borderWidth: 1, borderColor: "rgba(255,255,255,0.06)", borderRadius: radius.xl, paddingVertical: 14, alignItems: "center" },
   cancelBtn: { backgroundColor: "transparent", borderWidth: 0 },
   secondaryActionText: { color: colors.violet, fontSize: 14, fontWeight: "800" },
+  discardBtn: { paddingVertical: 14, alignItems: "center", marginTop: 6 },
+  discardText: { color: "rgba(255,255,255,0.25)", fontSize: 13, fontWeight: "600" },
 
   // Toast
   toastContainer: {
@@ -589,4 +698,51 @@ const s = StyleSheet.create({
   toastContent: { flexDirection: "row", alignItems: "center", gap: 10 },
   toastIcon: { color: "#34d399", fontSize: 16, fontWeight: "900" },
   toastText: { color: "#fff", fontSize: 14, fontWeight: "800" },
+
+  // Debug Panel
+  debugPanel: {
+    marginTop: 20,
+    backgroundColor: "rgba(255,255,255,0.02)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.06)",
+    borderRadius: radius.md,
+    overflow: "hidden",
+  },
+  debugHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 12,
+    backgroundColor: "rgba(255,255,255,0.04)",
+  },
+  debugTitle: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  debugToggle: {
+    color: colors.purple,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  debugContent: {
+    padding: 12,
+    backgroundColor: "rgba(0,0,0,0.2)",
+  },
+  debugLabel: {
+    color: colors.textDim,
+    fontSize: 10,
+    fontWeight: "800",
+    marginBottom: 4,
+  },
+  debugCode: {
+    color: "#a78bfa",
+    fontFamily: "monospace",
+    fontSize: 11,
+    lineHeight: 16,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    padding: 8,
+    borderRadius: 6,
+    overflow: "scroll",
+  },
 });

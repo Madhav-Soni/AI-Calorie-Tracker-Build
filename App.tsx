@@ -7,18 +7,41 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 
 import type { AnalysisResult } from "./services/foodAnalysis";
-import { useMealStore } from "./useMealStore";
 
 import HomeScreen from "./screens/HomeScreen";
-import ProgressScreen from "./screens/ProgressScreen";
 import HistoryScreen from "./screens/HistoryScreen";
 import ProfileScreen from "./screens/ProfileScreen";
 import CameraScreen from "./screens/CameraScreen";
 import FoodAnalysisScreen from "./screens/FoodAnalysisScreen";
-import OnboardingScreen from "./screens/OnboardingScreen";
+
+// Auth screens
+import SplashScreen from "./screens/auth/SplashScreen";
+import WelcomeScreen from "./screens/auth/WelcomeScreen";
+import LoginScreen from "./screens/auth/LoginScreen";
+import RegisterScreen from "./screens/auth/RegisterScreen";
+import ForgotPasswordScreen from "./screens/auth/ForgotPasswordScreen";
+
+// Onboarding screens
+import OnboardingStep1 from "./screens/onboarding/OnboardingStep1";
+import OnboardingStep2 from "./screens/onboarding/OnboardingStep2";
+import OnboardingStep3 from "./screens/onboarding/OnboardingStep3";
+import OnboardingStep4 from "./screens/onboarding/OnboardingStep4";
+import OnboardingStep5 from "./screens/onboarding/OnboardingStep5";
+
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 
 export type RootStackParamList = {
+  Splash: undefined;
+  Welcome: undefined;
+  Login: undefined;
+  Register: undefined;
+  ForgotPassword: undefined;
   Onboarding: undefined;
+  OnboardingStep1: { userData?: any };
+  OnboardingStep2: { userData?: any };
+  OnboardingStep3: { userData?: any };
+  OnboardingStep4: { userData?: any };
+  OnboardingStep5: { userData?: any };
   Tabs: undefined;
   Camera: undefined;
   FoodAnalysis: { imageUri: string; analysisResult?: AnalysisResult };
@@ -26,8 +49,6 @@ export type RootStackParamList = {
 
 export type TabParamList = {
   Home: undefined;
-  Progress: undefined;
-  ScanPlaceholder: undefined;
   History: undefined;
   Profile: undefined;
 };
@@ -50,14 +71,9 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     const focused = state.index === index;
     const icons: Record<string, string> = {
       Home: "⌂",
-      Progress: "📈",
       History: "◷",
       Profile: "◉",
     };
-
-    if (route.name === "ScanPlaceholder") {
-      return <View key={route.key} style={styles.fabPlaceholder} />;
-    }
 
     return (
       <PressScale
@@ -83,10 +99,9 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
       <BlurView tint="dark" intensity={42} style={StyleSheet.absoluteFill} />
       <View style={styles.tabBar}>
         {renderTab(0)}
+        <View style={styles.fabPlaceholder} />
         {renderTab(1)}
         {renderTab(2)}
-        {renderTab(3)}
-        {renderTab(4)}
       </View>
 
       {/* Center Floating Camera FAB - floats ABOVE nav and uses only shadow */}
@@ -108,35 +123,58 @@ function TabNavigator() {
       screenOptions={{ headerShown: false }}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Progress" component={ProgressScreen} />
-      <Tab.Screen name="ScanPlaceholder" component={HomeScreen} />
       <Tab.Screen name="History" component={HistoryScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
 }
 
-export default function App() {
-  const onboardingCompleted = useMealStore((s) => s.onboardingCompleted);
+function AppNavigator() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <SplashScreen navigation={null as any} />;
+  }
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator id="StackNavigator" screenOptions={{ headerShown: false, animation: "slide_from_bottom" }}>
-        {!onboardingCompleted ? (
-          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-        ) : (
-          <>
-            <Stack.Screen name="Tabs" component={TabNavigator} options={{ animation: "none" }} />
-            <Stack.Screen name="Camera" component={CameraScreen} />
-            <Stack.Screen
-              name="FoodAnalysis"
-              component={FoodAnalysisScreen}
-              options={{ animation: "slide_from_right" }}
-            />
-          </>
-        )}
-      </Stack.Navigator>
-    </NavigationContainer>
+    <Stack.Navigator id="StackNavigator" screenOptions={{ headerShown: false, animation: "slide_from_bottom" }}>
+      {!user ? (
+        // Auth Stack
+        <>
+          <Stack.Screen name="Welcome" component={WelcomeScreen} />
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Register" component={RegisterScreen} />
+          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+        </>
+      ) : (
+        // Main App Stack
+        <>
+          <Stack.Screen name="Onboarding" component={OnboardingStep1} />
+          <Stack.Screen name="OnboardingStep1" component={OnboardingStep1} />
+          <Stack.Screen name="OnboardingStep2" component={OnboardingStep2} />
+          <Stack.Screen name="OnboardingStep3" component={OnboardingStep3} />
+          <Stack.Screen name="OnboardingStep4" component={OnboardingStep4} />
+          <Stack.Screen name="OnboardingStep5" component={OnboardingStep5} />
+          <Stack.Screen name="Tabs" component={TabNavigator} options={{ animation: "none" }} />
+          <Stack.Screen name="Camera" component={CameraScreen} />
+          <Stack.Screen
+            name="FoodAnalysis"
+            component={FoodAnalysisScreen}
+            options={{ animation: "slide_from_right" }}
+          />
+        </>
+      )}
+    </Stack.Navigator>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <NavigationContainer>
+        <AppNavigator />
+      </NavigationContainer>
+    </AuthProvider>
   );
 }
 

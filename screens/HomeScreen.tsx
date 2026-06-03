@@ -16,6 +16,8 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../App";
 import { useMealStore } from "../useMealStore";
+import { useUserProfileStore } from "../store/userProfileStore";
+import { useAuth } from "../contexts/AuthContext";
 import { getCoachRecommendation } from "../NutritionCoach";
 import Reanimated, {
   useSharedValue,
@@ -134,8 +136,9 @@ function MealRow({
 // ─── Home Screen ───────────────────────────────────────────────────────────────
 export default function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { user } = useAuth();
+  const profile = useUserProfileStore((s) => s.profile);
   const meals = useMealStore((s) => s.meals);
-  const GOAL = useMealStore((s) => s.goals);
   const deleteMeal = useMealStore((s) => s.deleteMeal);
   const getDailyTotals = useMealStore((s) => s.getDailyTotals);
   const weightHistory = useMealStore((s) => s.weightHistory);
@@ -144,6 +147,14 @@ export default function HomeScreen() {
 
   // Streak derived directly from active meals dates log (or fallback to simple math)
   const streak = weightHistory.length > 0 ? Math.min(30, weightHistory.length) : 0;
+
+  // Use real goals from profile, or fallback to defaults
+  const GOAL = {
+    calories: profile?.calorieTarget || 2000,
+    protein: profile?.proteinTarget || 150,
+    carbs: profile?.carbTarget || 200,
+    fat: profile?.fatTarget || 65,
+  };
 
   const coachTip = getCoachRecommendation({
     protein: { consumed: totals.protein, goal: GOAL.protein },
