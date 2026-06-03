@@ -209,8 +209,10 @@ export default function HomeScreen() {
 
   // Reanimated Coach Card gradient glow pulse
   const coachGlow = useSharedValue(0);
+  const coachOpacity = useSharedValue(0);
   useEffect(() => {
     coachGlow.value = withRepeat(withTiming(1, { duration: 2500 }), -1, true);
+    coachOpacity.value = withTiming(1, { duration: 700 });
   }, []);
 
   const coachStyle = useAnimatedStyle(() => {
@@ -227,6 +229,7 @@ export default function HomeScreen() {
     return {
       borderColor,
       shadowColor,
+      opacity: coachOpacity.value,
     };
   });
 
@@ -472,7 +475,7 @@ export default function HomeScreen() {
         )}
 
         {/* ── AI COACH ── */}
-        <Reanimated.View style={[s.coachCard, { opacity: fadeAnim as any }, coachStyle]}>
+        <Reanimated.View style={[s.coachCard, coachStyle]}>
           <View style={s.coachRow}>
             <View style={s.coachOrb}>
               <Text style={{ fontSize: 14 }}>🤖</Text>
