@@ -99,9 +99,25 @@ export default function FoodAnalysisScreen() {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const successScaleAnim = useRef(new Animated.Value(0.92)).current;
 
+  const runAnalysis = async (uri: string) => {
+    try {
+      const res = await analyze(uri);
+      if (!res) {
+        Alert.alert("Error", "Could not analyze image. Please try again.");
+      }
+    } catch (error) {
+      console.error("[FRONTEND ERROR DURING ANALYSIS]", error);
+      Alert.alert("Error", "Could not analyze image. Please try again.");
+    }
+  };
+
   useEffect(() => {
     if (analysisResult) hydrate(analysisResult);
-    else if (imageUri) analyze(imageUri);
+    else if (imageUri) {
+      runAnalysis(imageUri).catch(err => {
+        console.error("[FRONTEND ERROR DURING ANALYSIS EFFECT]", err);
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -199,7 +215,7 @@ export default function FoodAnalysisScreen() {
             <Text style={{ fontSize: 44, marginBottom: 14 }}>⚠️</Text>
             <Text style={s.errorTitle}>Could not analyse</Text>
             <Text style={s.errorMsg}>{state.error}</Text>
-            <TouchableOpacity style={s.retryBtn} onPress={() => analyze(imageUri)} activeOpacity={0.8}>
+            <TouchableOpacity style={s.retryBtn} onPress={() => runAnalysis(imageUri)} activeOpacity={0.8}>
               <Text style={s.retryText}>Try Again</Text>
             </TouchableOpacity>
           </View>
@@ -234,43 +250,51 @@ export default function FoodAnalysisScreen() {
 
               {/* Foods detected */}
               <Text style={s.sectionLabel}>FOODS DETECTED</Text>
-              {d.foods.map((item: FoodItem, i: number) => (
-                <View key={i} style={s.foodCard}>
-                  <View style={[s.foodAccent, { backgroundColor: macroColor("protein") }]} />
-                  <View style={s.foodCardInner}>
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-                      <View style={{ flex: 1, marginRight: 12 }}>
-                        <Text style={s.foodName}>{item.name}</Text>
-                        <Text style={s.foodPortion}>{item.portion}</Text>
-                      </View>
-                      <View style={s.foodCalBadge}>
-                        <Text style={s.foodCalNum}>{item.calories}</Text>
-                        <Text style={s.foodCalUnit}>kcal</Text>
-                      </View>
-                    </View>
-                    <View style={s.foodMacroRow}>
-                      {(["protein", "carbs", "fat"] as const).map((m) => (
-                        <View key={m} style={s.foodMacroItem}>
-                          <Text style={[s.foodMacroVal, { color: macroColor(m) }]}>{item[m]}g</Text>
-                          <Text style={s.foodMacroKey}>{m}</Text>
+              {(!d || !Array.isArray(d.foods) || d.foods.length === 0) ? (
+                <View style={[s.card, { padding: 24, alignItems: "center", justifyContent: "center", minHeight: 100 }]}>
+                  <Text style={{ fontSize: 24, marginBottom: 8 }}>🍽️</Text>
+                  <Text style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, fontWeight: "600" }}>No foods detected</Text>
+                </View>
+              ) : (
+                d.foods.map((item: FoodItem, i: number) => (
+                  <View key={i} style={s.foodCard}>
+                    <View style={[s.foodAccent, { backgroundColor: macroColor("protein") }]} />
+                    <View style={s.foodCardInner}>
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                        <View style={{ flex: 1, marginRight: 12 }}>
+                          <Text style={s.foodName}>{item.name}</Text>
+                          <Text style={s.foodPortion}>{item.portion}</Text>
                         </View>
-                      ))}
+                        <View style={s.foodCalBadge}>
+                          <Text style={s.foodCalNum}>{item.calories}</Text>
+                          <Text style={s.foodCalUnit}>kcal</Text>
+                        </View>
+                      </View>
+                      <View style={s.foodMacroRow}>
+                        {(["protein", "carbs", "fat"] as const).map((m) => (
+                          <View key={m} style={s.foodMacroItem}>
+                            <Text style={[s.foodMacroVal, { color: macroColor(m) }]}>{item[m]}g</Text>
+                            <Text style={s.foodMacroKey}>{m}</Text>
+                          </View>
+                        ))}
+                      </View>
                     </View>
                   </View>
-                </View>
-              ))}
+                ))
+              )}
 
               {/* Log button */}
               <TouchableOpacity
                 style={s.logBtn}
                 activeOpacity={0.88}
                 onPress={() => {
+                  const foodsList = Array.isArray(d.foods) ? d.foods : [];
                   addMeal({
-                    name: d.foods.map((f: FoodItem) => f.name).join(", ") || "AI Scanned Meal",
-                    calories: d.totalCalories,
-                    protein: d.totalProtein,
-                    carbs: d.totalCarbs,
-                    fat: d.totalFat,
+                    name: foodsList.map((f: FoodItem) => f.name).join(", ") || "AI Scanned Meal",
+                    calories: Number(d.totalCalories) || 0,
+                    protein: Number(d.totalProtein) || 0,
+                    carbs: Number(d.totalCarbs) || 0,
+                    fat: Number(d.totalFat) || 0,
                   });
                   Alert.alert("Logged ✓", "Meal added to your diary!", [
                     { text: "Done", onPress: () => navigation.goBack() },
@@ -358,6 +382,7 @@ const s = StyleSheet.create({
   macrosGroup: { flex: 1, gap: 6 },
 
   // Macro bar card
+  card: { backgroundColor: CARD_BG, borderRadius: 22, borderWidth: 1, borderColor: BORDER, padding: 18, marginBottom: 20 },
   macroBarCard: { backgroundColor: CARD_BG, borderRadius: 22, borderWidth: 1,
     borderColor: BORDER, padding: 18, marginBottom: 20 },
 

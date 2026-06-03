@@ -180,27 +180,25 @@ export default function CameraScreen() {
 
   const handleAnalyse = async () => {
     if (!capturedUri || isLoading) return;
-    const result = await analyze(capturedUri);
-    if (!result) {
-      if (state.error && state.error.includes("Please retake the photo")) {
-        Alert.alert(
-          "Food Not Identified",
-          state.error,
-          [
-            { text: "Retake Photo", onPress: () => retake() },
-            { text: "Cancel", style: "cancel" },
-          ]
-        );
-      } else {
+    try {
+      const result = await analyze(capturedUri);
+      if (!result) {
         Alert.alert(
           "Analysis Failed",
-          state.error ?? "Could not analyse the image. Check your connection and backend.",
+          "Could not analyze image. Please try again.",
           [
             { text: "Retry", onPress: () => handleAnalyse() },
             { text: "Cancel", style: "cancel" },
           ]
         );
       }
+    } catch (error) {
+      console.error("[CAMERA ANALYSIS ERROR]", error);
+      Alert.alert(
+        "Analysis Error",
+        "Could not analyze image. Please try again.",
+        [{ text: "OK" }]
+      );
     }
   };
 

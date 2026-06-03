@@ -92,24 +92,53 @@ export async function analyzeFood(
     throw new Error(msg);
   }
 
-  const raw = await response.json();
+  let raw: any = null;
+  try {
+    raw = await response.json();
+  } catch (err) {
+    console.warn("[FRONTEND] Failed to parse response JSON", err);
+  }
+
   onProgress?.("success", 100);
 
-  // Normalise — backend may return camelCase or snake_case
-  const result: AnalysisResult = {
-    foods: (raw.foods ?? []).map((f: any): FoodItem => ({
-      name: f.name ?? "Unknown",
-      portion: f.portion ?? f.serving_size ?? "1 serving",
-      calories: Number(f.calories ?? 0),
-      protein: Number(f.protein ?? 0),
-      carbs: Number(f.carbs ?? f.carbohydrates ?? 0),
-      fat: Number(f.fat ?? 0),
-    })),
-    totalCalories: Number(raw.totalCalories ?? raw.total_calories ?? 0),
-    totalProtein: Number(raw.totalProtein ?? raw.total_protein ?? 0),
-    totalCarbs: Number(raw.totalCarbs ?? raw.total_carbs ?? 0),
-    totalFat: Number(raw.totalFat ?? raw.total_fat ?? 0),
+  // Normalise defensively — backend may return camelCase or snake_case, missing fields, or invalid arrays
+  const fallback: AnalysisResult = {
+    foods: [],
+    totalCalories: 0,
+    totalProtein: 0,
+    totalCarbs: 0,
+    totalFat: 0,
   };
 
+  if (!raw || typeof raw !== "object") {
+    console.log("[FRONTEND RAW RESULT]", fallback);
+    return fallback;
+  }
+
+  const foods: FoodItem[] = [];
+  if (Array.isArray(raw.foods)) {
+    for (const f of raw.foods) {
+      if (f && typeof f === "object") {
+        foods.push({
+          name: String(f.name ?? "Unknown"),
+          portion: String(f.portion ?? f.serving_size ?? "1 serving"),
+          calories: Number(f.calories) || 0,
+          protein: Number(f.protein) || 0,
+          carbs: Number(f.carbs ?? f.carbohydrates) || 0,
+          fat: Number(f.fat) || 0,
+        });
+      }
+    }
+  }
+
+  const result: AnalysisResult = {
+    foods,
+    totalCalories: Number(raw.totalCalories ?? raw.total_calories) || 0,
+    totalProtein: Number(raw.totalProtein ?? raw.total_protein) || 0,
+    totalCarbs: Number(raw.totalCarbs ?? raw.total_carbs) || 0,
+    totalFat: Number(raw.totalFat ?? raw.total_fat) || 0,
+  };
+
+  console.log("[FRONTEND RAW RESULT]", result);
   return result;
 }

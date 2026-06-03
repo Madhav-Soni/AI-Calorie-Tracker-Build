@@ -106,10 +106,13 @@ function MealRow({
   }, []);
 
   const time = new Date(meal.loggedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  const totalMacros = meal.protein + meal.carbs + meal.fat;
-  const pW = totalMacros ? (meal.protein / totalMacros) * 100 : 33;
-  const cW = totalMacros ? (meal.carbs / totalMacros) * 100 : 33;
-  const fW = totalMacros ? (meal.fat / totalMacros) * 100 : 34;
+  const protein = Number(meal.protein) || 0;
+  const carbs = Number(meal.carbs) || 0;
+  const fat = Number(meal.fat) || 0;
+  const totalMacros = protein + carbs + fat;
+  const pW = totalMacros ? (protein / totalMacros) * 100 : 33;
+  const cW = totalMacros ? (carbs / totalMacros) * 100 : 33;
+  const fW = totalMacros ? (fat / totalMacros) * 100 : 34;
 
   const animatedPW = widthScale.interpolate({ inputRange: [0, 1], outputRange: ["0%", `${pW}%`] });
   const animatedCW = widthScale.interpolate({ inputRange: [0, 1], outputRange: ["0%", `${cW}%`] });
