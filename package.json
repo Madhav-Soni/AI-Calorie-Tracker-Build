@@ -41,5 +41,10 @@
   },
   "name": "AI Calorie Tracker Build",
   "version": "1.0.0",
-  "scripts": {}
+  "scripts": {
+    "start": "expo start --port 8081",
+    "android": "expo start --android --port 8081",
+    "ios": "expo start --ios --port 8081",
+    "web": "expo start --web --port 8081"
+  }
 }
