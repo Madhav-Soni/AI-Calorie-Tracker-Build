@@ -29,8 +29,10 @@ import Reanimated, {
   interpolateColor,
 } from "react-native-reanimated";
 import { PressScale } from "../components/PressScale";
+import { colors, radius, shadow, spacing, typography, ui } from "../components/DesignSystem";
 
 const { width: W } = Dimensions.get("window");
+const RING_SIZE = 210;
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 const ReanimatedCircle = Reanimated.createAnimatedComponent(Circle);
 
@@ -185,7 +187,6 @@ export default function HomeScreen() {
   const ringColor = calPct < 0.8 ? "#34d399" : calPct <= 1 ? "#f59e0b" : "#ef4444";
 
   // Reanimated calorie ring
-  const RING_SIZE = 210;
   const RING_STROKE = 14;
   const { r: mainR, circ: mainCirc } = ring(calPct, RING_SIZE, RING_STROKE);
 
@@ -222,7 +223,7 @@ export default function HomeScreen() {
     const borderColor = interpolateColor(
       coachGlow.value,
       [0, 1],
-      ["rgba(124, 58, 237, 0.2)", "rgba(236, 72, 153, 0.5)"]
+      ["rgba(124, 58, 237, 0.14)", "rgba(236, 72, 153, 0.24)"]
     );
     const shadowColor = interpolateColor(
       coachGlow.value,
@@ -267,7 +268,7 @@ export default function HomeScreen() {
   }, []);
 
 
-  const glowOpacity = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.7] });
+  const glowOpacity = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.08, 0.16] });
   const scanY = scanAnim.interpolate({ inputRange: [0, 1], outputRange: [-30, 30] });
 
   const todayIdx = ((new Date().getDay() + 6) % 7); // Mon=0
@@ -277,11 +278,11 @@ export default function HomeScreen() {
     <SafeAreaView style={s.screen}>
       <StatusBar barStyle="light-content" />
 
-      {/* Ambient background orbs */}
+      {/* Ambient glow field */}
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <Animated.View style={[s.orb, { width: 300, height: 300, borderRadius: 150, backgroundColor: "#7c3aed", top: -100, right: -80, opacity: glowOpacity }]} />
-        <View style={[s.orb, { width: 220, height: 220, borderRadius: 110, backgroundColor: "#0ea5e9", top: 280, left: -100, opacity: 0.06 }]} />
-        <View style={[s.orb, { width: 180, height: 180, borderRadius: 90, backgroundColor: "#10b981", bottom: 200, right: -60, opacity: 0.05 }]} />
+        <Animated.View style={[s.ambientWash, { top: -120, right: -90, opacity: glowOpacity }]} />
+        <View style={[s.ambientWash, { top: 260, left: -130, backgroundColor: colors.cyan, opacity: 0.035 }]} />
+        <View style={s.noiseVeil} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
@@ -290,7 +291,7 @@ export default function HomeScreen() {
         <Animated.View style={[s.header, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           <View>
             <Text style={s.dateStr}>{dateStr}</Text>
-            <Text style={s.greeting}>{`${greeting}, Madhav 👋`}</Text>
+            <Text style={s.greeting}>{`${greeting}, Madhav`}</Text>
           </View>
           <TouchableOpacity
             onPress={() => (navigation as any).navigate("Tabs", { screen: "Profile" })}
@@ -313,7 +314,7 @@ export default function HomeScreen() {
 
           <View style={s.heroInner}>
             {/* Ring */}
-            <View style={{ width: RING_SIZE, height: RING_SIZE, position: "relative" }}>
+            <View style={s.ringWrap}>
               <Svg width={RING_SIZE} height={RING_SIZE}>
                 <Defs>
                   <LinearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
@@ -360,7 +361,7 @@ export default function HomeScreen() {
               <View style={s.heroStatDivider} />
               <View style={s.heroStatBlock}>
                 <Text style={s.heroStatLabel}>STATUS</Text>
-                <Text style={[s.heroStatBig, { color: "#c084fc", fontSize: 16 }]}>Optimal</Text>
+                <Text style={[s.heroStatBig, s.heroStatusText]}>Optimal</Text>
                 <Text style={s.heroStatSub}>Fat-burn zone</Text>
               </View>
             </View>
@@ -385,13 +386,15 @@ export default function HomeScreen() {
               <View style={s.ctaScanArea}>
                 <Animated.View style={[s.ctaScanLine, { transform: [{ translateY: scanY }] }]} />
               </View>
-              <Text style={s.ctaIcon}>📷</Text>
+              <View style={s.ctaIconBubble}>
+                <Text style={s.ctaIcon}>AI</Text>
+              </View>
               <View style={s.ctaTitleContainer}>
                 <Text style={s.ctaTitle}>Scan Meal</Text>
                 <Text style={s.ctaSub}>AI identifies food instantly</Text>
               </View>
               <View style={s.ctaArrow}>
-                <Text style={s.ctaArrowText}>→</Text>
+                <Text style={s.ctaArrowText}>›</Text>
               </View>
             </PressScale>
           </Reanimated.View>
@@ -399,15 +402,15 @@ export default function HomeScreen() {
           {/* Secondary actions */}
           <View style={s.secondaryRow}>
             <PressScale style={s.secondaryBtn}>
-              <Text style={s.secondaryIcon}>🎙️</Text>
+              <Text style={s.secondaryIcon}>◌</Text>
               <Text style={s.secondaryLabel}>Voice Log</Text>
             </PressScale>
             <PressScale style={s.secondaryBtn}>
-              <Text style={s.secondaryIcon}>🏷️</Text>
+              <Text style={s.secondaryIcon}>▣</Text>
               <Text style={s.secondaryLabel}>Barcode</Text>
             </PressScale>
             <PressScale style={s.secondaryBtn}>
-              <Text style={s.secondaryIcon}>✏️</Text>
+              <Text style={s.secondaryIcon}>✎</Text>
               <Text style={s.secondaryLabel}>Manual</Text>
             </PressScale>
           </View>
@@ -460,7 +463,7 @@ export default function HomeScreen() {
 
         {meals.length === 0 ? (
           <View style={s.emptyState}>
-            <Text style={s.emptyIcon}>🍽️</Text>
+            <Text style={s.emptyIcon}>◎</Text>
             <Text style={s.emptyTitle}>No meals logged yet</Text>
             <Text style={s.emptySub}>Tap Scan Meal above to get started</Text>
           </View>
@@ -481,7 +484,7 @@ export default function HomeScreen() {
         <Reanimated.View style={[s.coachCard, coachStyle]}>
           <View style={s.coachRow}>
             <View style={s.coachOrb}>
-              <Text style={{ fontSize: 14 }}>🤖</Text>
+              <Text style={s.coachGlyph}>AI</Text>
             </View>
             <View style={s.coachTextWrap}>
               <Text style={s.coachLabel}>AI NUTRITION COACH</Text>
@@ -490,93 +493,97 @@ export default function HomeScreen() {
           </View>
         </Reanimated.View>
 
-        <View style={{ height: 110 }} />
+        <View style={{ height: 102 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
-const CARD_BG = "#0D0D1A";
-const BORDER = "rgba(127,119,221,0.18)";
+const CARD_BG = colors.panelSolid;
+const BORDER = colors.border;
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#050510" },
-  scroll: { paddingHorizontal: 20, paddingTop: 28 },
+  screen: ui.screen,
+  scroll: { paddingHorizontal: spacing.xl, paddingTop: 24 },
 
-  orb: { position: "absolute" },
+  ambientWash: {
+    position: "absolute",
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: colors.purple,
+  },
+  noiseVeil: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: "rgba(255,255,255,0.01)",
+  },
 
   // Header
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 22 },
-  dateStr: { fontSize: 10, color: "rgba(255,255,255,0.35)", fontWeight: "700", letterSpacing: 2, textTransform: "uppercase" },
-  greeting: { fontSize: 26, color: "#fff", fontWeight: "900", letterSpacing: -0.5, marginTop: 3 },
-  avatar: { width: 46, height: 46, borderRadius: 23, borderWidth: 2, borderColor: "#7c3aed" },
-  avatarBadge: { position: "absolute", bottom: 1, right: 1, width: 11, height: 11, borderRadius: 6, backgroundColor: "#34d399", borderWidth: 2, borderColor: "#050510" },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 18 },
+  dateStr: { ...typography.sectionLabel, color: colors.textDim },
+  greeting: { fontSize: 26, color: colors.text, fontWeight: "900", letterSpacing: 0, marginTop: 4 },
+  avatar: { width: 48, height: 48, borderRadius: 24, borderWidth: 2, borderColor: colors.violet },
+  avatarBadge: { position: "absolute", bottom: 1, right: 1, width: 12, height: 12, borderRadius: 6, backgroundColor: colors.green, borderWidth: 2, borderColor: colors.ink },
 
   // Hero card
   heroCard: {
-    backgroundColor: CARD_BG,
-    borderRadius: 22,
+    backgroundColor: colors.panelDeep,
+    borderRadius: radius.xxl,
     borderWidth: 1,
     borderColor: BORDER,
-    padding: 20,
-    marginBottom: 14,
+    padding: 18,
+    marginBottom: 12,
     overflow: "hidden",
-    shadowColor: "#7c3aed",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.18,
-    shadowRadius: 24,
-    elevation: 10,
+    ...shadow.card,
   },
   gridLines: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
   gridLine: { position: "absolute", left: 0, right: 0, height: 0.5, backgroundColor: "rgba(255,255,255,0.025)" },
-  heroInner: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  heroInner: { flexDirection: W < 380 ? "column" : "row", alignItems: "center", justifyContent: "space-between", gap: 16 },
+  ringWrap: { width: RING_SIZE, height: RING_SIZE, position: "relative" },
   ringCenter: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
-  ringCalNum: { fontSize: 38, fontWeight: "900", color: "#fff", letterSpacing: -1.5 },
-  ringCalLabel: { fontSize: 10, color: "rgba(255,255,255,0.4)", fontWeight: "600", marginTop: 1 },
+  ringCalNum: { fontSize: 38, fontWeight: "900", color: colors.text, letterSpacing: 0 },
+  ringCalLabel: { fontSize: 10, color: colors.textDim, fontWeight: "700", marginTop: 1 },
   ringBadge: { marginTop: 8, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1 },
   ringBadgeText: { fontSize: 10, fontWeight: "800" },
 
-  heroStats: { flex: 1, paddingLeft: 20, gap: 14 },
+  heroStats: { flex: 1, width: W < 380 ? "100%" : undefined, paddingLeft: W < 380 ? 0 : 20, gap: 14 },
   heroStatBlock: { gap: 2 },
-  heroStatLabel: { fontSize: 10, color: "rgba(255,255,255,0.35)", fontWeight: "700", letterSpacing: 1.5, textTransform: "uppercase" },
-  heroStatBig: { fontSize: 28, fontWeight: "900", letterSpacing: -1 },
-  heroStatSub: { fontSize: 10, color: "rgba(255,255,255,0.3)", fontWeight: "500" },
+  heroStatLabel: { ...typography.sectionLabel },
+  heroStatBig: { fontSize: 27, fontWeight: "900", letterSpacing: 0, color: colors.text },
+  heroStatusText: { color: colors.violet, fontSize: 17 },
+  heroStatSub: { fontSize: 10, color: colors.textDim, fontWeight: "600" },
   heroStatDivider: { height: 1, backgroundColor: BORDER },
 
   // Macros
-  macrosRow: { flexDirection: "row", gap: 8, marginBottom: 14 },
+  macrosRow: { flexDirection: "row", gap: 8, marginBottom: 12 },
   macroPill: {
     flex: 1,
-    backgroundColor: CARD_BG,
-    borderRadius: 22,
+    backgroundColor: colors.panelDeep,
+    borderRadius: radius.xl,
     borderWidth: 1,
-    padding: 12,
+    padding: 13,
   },
-  macroPillTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
-  macroPillLabel: { fontSize: 10, fontWeight: "800", letterSpacing: 0.5 },
+  macroPillTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 9 },
+  macroPillLabel: { ...typography.tiny, fontWeight: "800" },
   macroPillVal: {},
   macroPillNum: { fontSize: 14, color: "#fff", fontWeight: "800" },
-  macroPillGoal: { fontSize: 10, color: "rgba(255,255,255,0.3)", fontWeight: "500" },
+  macroPillGoal: { fontSize: 10, color: colors.textDim, fontWeight: "600" },
   macroPillTrack: { height: 4, backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden" },
   macroPillFill: { height: "100%", borderRadius: 2 },
 
   // CTA
-  ctaWrap: { marginBottom: 14 },
+  ctaWrap: { marginBottom: 12 },
   ctaBtn: {
-    backgroundColor: "#7c3aed",
-    borderRadius: 22,
-    padding: 18,
+    backgroundColor: colors.purpleDeep,
+    borderRadius: radius.xxl,
+    padding: 17,
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
     overflow: "hidden",
-    shadowColor: "#7c3aed",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 10,
-    marginBottom: 10,
+    ...shadow.glowPurple,
+    marginBottom: 9,
   },
   ctaScanArea: {
     position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
@@ -587,39 +594,42 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.15)",
     top: "50%",
   },
-  ctaIcon: { fontSize: 28 },
-  ctaTitle: { fontSize: 18, color: "#fff", fontWeight: "900", letterSpacing: -0.5 },
-  ctaSub: { fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 2 },
+  ctaIconBubble: { width: 46, height: 46, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.16)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.2)" },
+  ctaIcon: { fontSize: 14, color: colors.text, fontWeight: "900", letterSpacing: 0.8 },
+  ctaTitle: { fontSize: 18, color: "#fff", fontWeight: "900", letterSpacing: 0 },
+  ctaSub: { fontSize: 11, color: "rgba(255,255,255,0.68)", marginTop: 2, fontWeight: "600" },
   ctaArrow: { marginLeft: "auto", width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
-  ctaArrowText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  ctaArrowText: { color: colors.text, fontSize: 24, fontWeight: "700", lineHeight: 25 },
 
   secondaryRow: { flexDirection: "row", gap: 8 },
   secondaryBtn: {
     flex: 1,
-    backgroundColor: CARD_BG,
-    borderRadius: 22,
+    backgroundColor: colors.panelDeep,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: BORDER,
-    padding: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
     alignItems: "center",
     gap: 6,
   },
-  secondaryIcon: { fontSize: 20 },
-  secondaryLabel: { fontSize: 11, color: "rgba(255,255,255,0.45)", fontWeight: "700" },
+  secondaryIcon: { fontSize: 18, color: colors.violet, fontWeight: "900" },
+  secondaryLabel: { fontSize: 11, color: colors.textMuted, fontWeight: "700" },
 
   // Card
   card: {
-    backgroundColor: CARD_BG,
-    borderRadius: 22,
+    backgroundColor: colors.panelDeep,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: BORDER,
-    padding: 18,
-    marginBottom: 14,
+    padding: 17,
+    marginBottom: 12,
+    ...shadow.card,
   },
-  cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
+  cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 },
 
   // Section headers
-  sectionTitle: { fontSize: 10, color: "rgba(255,255,255,0.4)", fontWeight: "800", textTransform: "uppercase", letterSpacing: 2 },
+  sectionTitle: typography.sectionLabel,
   sectionHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
   sectionCount: { fontSize: 11, color: "rgba(255,255,255,0.3)", fontWeight: "600" },
 
@@ -628,7 +638,7 @@ const s = StyleSheet.create({
   streakText: { color: "#facc15", fontSize: 11, fontWeight: "800" },
 
   // Chart
-  chart: { flexDirection: "row", alignItems: "flex-end", height: 88, gap: 4, marginBottom: 14, paddingBottom: 16 },
+  chart: { flexDirection: "row", alignItems: "flex-end", height: 86, gap: 4, marginBottom: 12, paddingBottom: 15 },
   chartCol: { flex: 1, alignItems: "center", justifyContent: "flex-end", height: "100%" },
   chartBar: { width: "70%", borderRadius: 5, position: "relative", overflow: "visible" },
   chartDot: { position: "absolute", top: -4, alignSelf: "center", width: 6, height: 6, borderRadius: 3 },
@@ -639,15 +649,15 @@ const s = StyleSheet.create({
   onTrackText: { color: "#34d399", fontSize: 11, fontWeight: "700" },
 
   // Meals
-  mealsList: { gap: 8, marginBottom: 14 },
+  mealsList: { gap: 8, marginBottom: 12 },
   mealRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: CARD_BG,
-    borderRadius: 22,
+    backgroundColor: colors.panelDeep,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: BORDER,
-    padding: 14,
+    padding: 13,
     gap: 4,
   },
   mealEmoji: { width: 46, height: 46, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.04)", alignItems: "center", justifyContent: "center" },
@@ -665,25 +675,26 @@ const s = StyleSheet.create({
   deleteX: { fontSize: 13, color: "#ef444488" },
 
   // Empty
-  emptyState: { backgroundColor: CARD_BG, borderRadius: 22, borderWidth: 1, borderColor: BORDER, padding: 32, alignItems: "center", marginBottom: 14 },
-  emptyIcon: { fontSize: 36, marginBottom: 10 },
+  emptyState: { backgroundColor: CARD_BG, borderRadius: radius.xl, borderWidth: 1, borderColor: BORDER, padding: 32, alignItems: "center", marginBottom: 14 },
+  emptyIcon: { fontSize: 36, marginBottom: 10, color: colors.violet, fontWeight: "900" },
   emptyTitle: { fontSize: 15, color: "#fff", fontWeight: "800" },
   emptySub: { fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 4 },
 
   // Coach
   coachCard: {
-    backgroundColor: "rgba(124,58,237,0.07)",
-    borderRadius: 22,
+    backgroundColor: "rgba(124,58,237,0.045)",
+    borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: "rgba(124,58,237,0.2)",
+    borderColor: "rgba(124,58,237,0.14)",
     padding: 16,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    elevation: 2,
   },
   coachRow: { flexDirection: "row", gap: 12, alignItems: "flex-start" },
-  coachOrb: { width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(124,58,237,0.25)", alignItems: "center", justifyContent: "center" },
+  coachOrb: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(124,58,237,0.25)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(168,85,247,0.28)" },
+  coachGlyph: { fontSize: 10, color: colors.text, fontWeight: "900", letterSpacing: 0.7 },
   coachTextWrap: { flex: 1 },
   coachLabel: { fontSize: 9, color: "#a855f7", fontWeight: "800", letterSpacing: 2, marginBottom: 5 },
   coachTip: { fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 20, fontWeight: "500" },

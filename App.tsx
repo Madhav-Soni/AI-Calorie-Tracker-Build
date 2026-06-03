@@ -1,5 +1,5 @@
 import React from "react";
-import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -30,19 +30,22 @@ const Tab = createBottomTabNavigator<TabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 import { BlurView } from "expo-blur";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PressScale } from "./components/PressScale";
+import { colors, radius, shadow } from "./components/DesignSystem";
 
 function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const rootNav = navigation.getParent<NativeStackNavigationProp<RootStackParamList>>();
+  const insets = useSafeAreaInsets();
 
   const renderTab = (index: number) => {
     const route = state.routes[index];
     const { options } = descriptors[route.key];
     const focused = state.index === index;
     const icons: Record<string, string> = {
-      Home: "🏠",
-      History: "📅",
-      Profile: "👤",
+      Home: "⌂",
+      History: "◷",
+      Profile: "◉",
     };
 
     return (
@@ -53,6 +56,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
           if (!focused) navigation.navigate(route.name);
         }}
       >
+        <View style={[styles.activeRail, focused && styles.activeRailVisible]} />
         <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>
           {icons[route.name]}
         </Text>
@@ -64,8 +68,8 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   };
 
   return (
-    <View style={styles.tabBarContainer}>
-      <BlurView tint="dark" intensity={80} style={StyleSheet.absoluteFill} />
+    <View style={[styles.tabBarContainer, { bottom: Math.max(insets.bottom, 10) + 8 }]}>
+      <BlurView tint="dark" intensity={42} style={StyleSheet.absoluteFill} />
       <View style={styles.tabBar}>
         {renderTab(0)}
         {renderTab(1)}
@@ -78,7 +82,8 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         style={styles.fab}
         onPress={() => rootNav?.navigate("Camera")}
       >
-        <Text style={styles.fabIcon}>📷</Text>
+        <Text style={styles.fabIcon}>⌁</Text>
+        <View style={styles.fabPulse} />
       </PressScale>
     </View>
   );
@@ -117,65 +122,94 @@ export default function App() {
 const styles = StyleSheet.create({
   tabBarContainer: {
     position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "rgba(5, 5, 16, 0.5)",
-    borderTopWidth: 1.5,
-    borderTopColor: "rgba(127, 119, 221, 0.18)",
+    left: 16,
+    right: 16,
+    backgroundColor: "rgba(8, 8, 19, 0.78)",
+    borderWidth: 1,
+    borderTopColor: colors.border,
+    borderColor: "rgba(139, 126, 246, 0.16)",
+    borderRadius: 28,
     overflow: "hidden",
+    ...shadow.card,
   },
   tabBar: {
     flexDirection: "row",
-    paddingBottom: 24,
-    paddingTop: 12,
+    minHeight: 68,
+    paddingBottom: 9,
+    paddingTop: 10,
+    paddingHorizontal: 8,
     alignItems: "center",
   },
   tabItem: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 3,
+    gap: 4,
+    minHeight: 48,
+  },
+  activeRail: {
+    width: 18,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: "transparent",
+    marginBottom: 1,
+  },
+  activeRailVisible: {
+    backgroundColor: colors.violet,
+    shadowColor: colors.violet,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
   },
   tabIcon: {
-    fontSize: 20,
-    color: "rgba(255, 255, 255, 0.35)",
+    fontSize: 19,
+    color: colors.textDim,
+    lineHeight: 20,
   },
   tabIconActive: {
-    color: "#7C3AED",
+    color: colors.violet,
   },
   tabLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "700",
-    color: "rgba(255, 255, 255, 0.35)",
-    letterSpacing: 0.5,
+    color: colors.textDim,
+    letterSpacing: 0,
   },
   tabLabelActive: {
-    color: "#7C3AED",
+    color: colors.violet,
   },
   fabPlaceholder: {
-    width: 62,
-    height: 40,
+    width: 74,
+    height: 44,
   },
   fab: {
     position: "absolute",
-    top: -24,
+    top: -18,
     alignSelf: "center",
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    backgroundColor: "#7C3AED",
+    width: 58,
+    height: 58,
+    borderRadius: radius.pill,
+    backgroundColor: colors.purpleDeep,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 4,
-    borderColor: "#050510",
-    shadowColor: "#7C3AED",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
-    elevation: 12,
+    borderWidth: 3,
+    borderColor: colors.ink,
+    ...shadow.glowPurple,
   },
   fabIcon: {
     fontSize: 26,
+    lineHeight: 28,
+    color: "#fff",
+    fontWeight: "900",
+  },
+  fabPulse: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    bottom: 8,
+    left: 8,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.24)",
   },
 });

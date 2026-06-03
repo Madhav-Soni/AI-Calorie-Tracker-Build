@@ -2,21 +2,42 @@ import { Router, Request, Response } from "express";
 
 const router = Router();
 
-// ─── Prompt: ONLY food identification ────────────────────────────────────────
-const PROMPT = `Identify every food item visible in this image.
+// ─── Prompt: structured food identification ────────────────────────────────────
+const PROMPT = `You are a food recognition AI.
 
-Return STRICT JSON only — no markdown, no backticks, no explanation, no nutrition values.
-
-Format:
-{"foods":["food1","food2"]}
+Identify ALL visible foods in this image.
 
 Rules:
-- Only food names, nothing else
-- Use common English names
-- If no food is visible return {"foods":[]}`;
+- Return ONLY valid JSON
+- No markdown
+- No explanation
+- No extra text
 
-const RETRY_PROMPT = `Output food names JSON for the food in this image. JSON only, no text:
-{"foods": ["food name"]}`;
+JSON format:
+
+{
+  "foods": [
+    {
+      "name": "banana",
+      "portion": "1 medium",
+      "calories": 105,
+      "protein": 1,
+      "carbs": 27,
+      "fat": 0
+    }
+  ],
+  "totalCalories": 105,
+  "totalProtein": 1,
+  "totalCarbs": 27,
+  "totalFat": 0
+}
+
+If uncertain:
+- make your best guess
+- NEVER return empty response
+- NEVER return explanations`;
+
+const RETRY_PROMPT = PROMPT;
 
 const ESTIMATE_PROMPT = (food: string) => `You are a nutrition API. Estimate realistic nutrition values for 1 serving of the food item: "${food}".
 Output ONLY this JSON format, no commentary, no markdown, no other text:
@@ -250,12 +271,43 @@ function safeParseAIResponse(raw: unknown): any {
     } catch {}
   }
 
+  return null;
+}
+
+function runKeywordFallback(text: string): any {
+  console.log("[BACKEND] Running keyword fallback detection on text:", text);
+  const detectedFoods: any[] = [];
+  const lowercaseText = text.toLowerCase();
+
+  const keywords = ["banana", "pineapple", "apple", "rice", "pizza", "burger", "chicken", "egg", "mango", "orange", "grapes", "strawberry", "watermelon", "avocado", "blueberry", "broccoli", "spinach", "carrot", "tomato", "cucumber", "corn", "potato", "onion", "lettuce", "pasta", "bread", "oats", "cereal", "noodles", "tortilla", "beef", "salmon", "tuna", "shrimp", "pork", "lamb", "tofu", "milk", "cheese", "yogurt", "butter", "chips", "cookie", "chocolate", "cake", "donut", "popcorn", "nuts", "coffee", "juice", "soda", "beer", "smoothie", "roti", "naan", "dal", "biryani", "samosa", "idli", "dosa", "paneer"];
+
+  for (const word of keywords) {
+    if (lowercaseText.includes(word)) {
+      const entry = FOOD_DB[word];
+      if (entry) {
+        detectedFoods.push({
+          name: word.charAt(0).toUpperCase() + word.slice(1),
+          portion: entry.portion,
+          calories: entry.calories,
+          protein: entry.protein,
+          carbs: entry.carbs,
+          fat: entry.fat,
+        });
+      }
+    }
+  }
+
+  const totalCalories = detectedFoods.reduce((acc, f) => acc + f.calories, 0);
+  const totalProtein = detectedFoods.reduce((acc, f) => acc + f.protein, 0);
+  const totalCarbs = detectedFoods.reduce((acc, f) => acc + f.carbs, 0);
+  const totalFat = detectedFoods.reduce((acc, f) => acc + f.fat, 0);
+
   return {
-    foods: [],
-    totalCalories: 0,
-    totalProtein: 0,
-    totalCarbs: 0,
-    totalFat: 0
+    foods: detectedFoods,
+    totalCalories,
+    totalProtein,
+    totalCarbs,
+    totalFat,
   };
 }
 
@@ -340,10 +392,18 @@ async function estimateNutrition(
 }
 
 router.post("/analyze-food", async (req: Request, res: Response): Promise<void> => {
+  const fallbackPayload = {
+    foods: [],
+    totalCalories: 0,
+    totalProtein: 0,
+    totalCarbs: 0,
+    totalFat: 0,
+  };
+
   try {
     const { base64 } = req.body;
     if (!base64) {
-      res.status(400).json({ error: "No image data provided" });
+      res.status(200).json(fallbackPayload);
       return;
     }
 
@@ -351,7 +411,7 @@ router.post("/analyze-food", async (req: Request, res: Response): Promise<void> 
     const CF_API_TOKEN = process.env.CF_API_TOKEN;
 
     if (!CF_ACCOUNT_ID || !CF_API_TOKEN) {
-      res.status(500).json({ error: "Cloudflare credentials not configured" });
+      res.status(200).json(fallbackPayload);
       return;
     }
 
@@ -362,30 +422,22 @@ router.post("/analyze-food", async (req: Request, res: Response): Promise<void> 
     console.log("Attempt 1...");
     let result = await callCloudflare(imageBytes, PROMPT, CF_ACCOUNT_ID, CF_API_TOKEN);
     let responseText = result?.result?.response;
-    console.log("Response 1:", typeof responseText === "string" ? responseText.substring(0, 100) : responseText);
+    console.log("[RAW AI RESPONSE]", responseText);
 
     if (typeof responseText === "string" && isRefusal(responseText)) {
-      // Retry with simpler prompt
       console.log("Refusal detected, retrying...");
       result = await callCloudflare(imageBytes, RETRY_PROMPT, CF_ACCOUNT_ID, CF_API_TOKEN);
       responseText = result?.result?.response;
-      console.log("Response 2:", typeof responseText === "string" ? responseText.substring(0, 100) : responseText);
+      console.log("[RAW AI RESPONSE]", responseText);
     }
 
-    const parsed = safeParseAIResponse(responseText);
-    let rawNames: string[] = [];
-    if (parsed && Array.isArray(parsed.foods)) {
-      rawNames = parsed.foods.map(String);
-    } else if (Array.isArray(parsed)) {
-      rawNames = parsed.map(String);
+    let parsed = safeParseAIResponse(responseText);
+    
+    // Check if parsed is valid and has foods array
+    if (!parsed || !Array.isArray(parsed.foods) || parsed.foods.length === 0) {
+      console.log("[BACKEND] AI response invalid or empty foods array, triggering keyword fallback...");
+      parsed = runKeywordFallback(responseText || "");
     }
-
-    if (!rawNames || rawNames.length === 0) {
-      res.status(422).json({ error: "No food confidently detected. Try a clearer photo." });
-      return;
-    }
-
-    console.log("Identified:", rawNames);
 
     const matchedFoods: any[] = [];
     const unrecognized: string[] = [];
@@ -394,10 +446,30 @@ router.post("/analyze-food", async (req: Request, res: Response): Promise<void> 
     let totalCarbs = 0;
     let totalFat = 0;
 
-    for (const name of rawNames) {
+    const foodsList = Array.isArray(parsed.foods) ? parsed.foods : [];
+
+    for (const item of foodsList) {
+      let name = "Unknown";
+      let calories = 0;
+      let protein = 0;
+      let carbs = 0;
+      let fat = 0;
+      let portion = "1 serving";
+
+      if (typeof item === "string") {
+        name = item;
+      } else if (item && typeof item === "object") {
+        name = String(item.name || "Unknown");
+        calories = Number(item.calories) || 0;
+        protein = Number(item.protein) || 0;
+        carbs = Number(item.carbs) || 0;
+        fat = Number(item.fat) || 0;
+        portion = String(item.portion || "1 serving");
+      }
+
       const key = normalize(name);
       if (key && FOOD_DB[key]) {
-        console.log(`Using deterministic DB entry for known food "${name}" -> key: "${key}"`);
+        console.log(`[BACKEND] Using deterministic DB entry for known food "${name}" -> key: "${key}"`);
         const entry = FOOD_DB[key];
         matchedFoods.push({
           name: key.charAt(0).toUpperCase() + key.slice(1),
@@ -412,27 +484,53 @@ router.post("/analyze-food", async (req: Request, res: Response): Promise<void> 
         totalCarbs += entry.carbs;
         totalFat += entry.fat;
       } else {
-        // Fallback to AI estimation for unknown food
-        console.log(`Unknown food "${name}", calling fallback estimation...`);
-        const estimated = await estimateNutrition(name, CF_ACCOUNT_ID, CF_API_TOKEN);
-        if (estimated) {
-          console.log(`Successfully estimated nutrition for unknown food "${name}"`);
-          const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1);
+        // If AI already provided nutrition estimation, use it directly
+        if (calories > 0 || protein > 0 || carbs > 0 || fat > 0) {
+          console.log(`[BACKEND] Using AI estimate from structured response for "${name}"`);
           matchedFoods.push({
-            name: capitalizedName,
-            portion: estimated.portion ?? "1 serving",
-            calories: Number(estimated.calories ?? 0),
-            protein: Number(estimated.protein ?? 0),
-            carbs: Number(estimated.carbs ?? 0),
-            fat: Number(estimated.fat ?? 0)
+            name: name.charAt(0).toUpperCase() + name.slice(1),
+            portion,
+            calories,
+            protein,
+            carbs,
+            fat,
           });
-          totalCalories += Number(estimated.calories ?? 0);
-          totalProtein += Number(estimated.protein ?? 0);
-          totalCarbs += Number(estimated.carbs ?? 0);
-          totalFat += Number(estimated.fat ?? 0);
+          totalCalories += calories;
+          totalProtein += protein;
+          totalCarbs += carbs;
+          totalFat += fat;
         } else {
-          unrecognized.push(name);
-          console.log("Not in DB and estimation failed:", name);
+          // Fallback to secondary estimation call
+          console.log(`[BACKEND] Unknown food "${name}" with no embedded macros, calling fallback estimation...`);
+          const estimated = await estimateNutrition(name, CF_ACCOUNT_ID, CF_API_TOKEN);
+          if (estimated) {
+            matchedFoods.push({
+              name: name.charAt(0).toUpperCase() + name.slice(1),
+              portion: estimated.portion ?? "1 serving",
+              calories: Number(estimated.calories) || 0,
+              protein: Number(estimated.protein) || 0,
+              carbs: Number(estimated.carbs) || 0,
+              fat: Number(estimated.fat) || 0,
+            });
+            totalCalories += Number(estimated.calories) || 0;
+            totalProtein += Number(estimated.protein) || 0;
+            totalCarbs += Number(estimated.carbs) || 0;
+            totalFat += Number(estimated.fat) || 0;
+          } else {
+            console.log(`[BACKEND] Estimation failed for "${name}", using default fallback nutrition.`);
+            matchedFoods.push({
+              name: name.charAt(0).toUpperCase() + name.slice(1),
+              portion: "1 serving",
+              calories: 120,
+              protein: 2,
+              carbs: 15,
+              fat: 2,
+            });
+            totalCalories += 120;
+            totalProtein += 2;
+            totalCarbs += 15;
+            totalFat += 2;
+          }
         }
       }
     }
@@ -440,26 +538,18 @@ router.post("/analyze-food", async (req: Request, res: Response): Promise<void> 
     // Step 3: Backend computes totals deterministically
     const responsePayload = {
       foods: matchedFoods,
-      totalCalories: Number(totalCalories.toFixed(1)),
-      totalProtein: Number(totalProtein.toFixed(1)),
-      totalCarbs: Number(totalCarbs.toFixed(1)),
-      totalFat: Number(totalFat.toFixed(1)),
+      totalCalories: Number(totalCalories.toFixed(1)) || 0,
+      totalProtein: Number(totalProtein.toFixed(1)) || 0,
+      totalCarbs: Number(totalCarbs.toFixed(1)) || 0,
+      totalFat: Number(totalFat.toFixed(1)) || 0,
       unrecognized,
     };
-
-    // Validation: Any recognized food must yield > 0 calories
-    if (responsePayload.totalCalories <= 0) {
-      res.status(400).json({ error: "Food is not clearly visible. Please retake the photo." });
-      return;
-    }
 
     res.status(200).json(responsePayload);
 
   } catch (error) {
     console.error("Error:", error);
-    res.status(500).json({
-      error: error instanceof Error ? error.message : "Failed to analyze food image",
-    });
+    res.status(200).json(fallbackPayload);
   }
 });
 

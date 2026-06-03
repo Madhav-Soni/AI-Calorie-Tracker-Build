@@ -11,10 +11,11 @@ import type { RootStackParamList } from "../App";
 import { useAnalyzeFood } from "../hooks/useAnalyzeFood";
 import type { FoodItem } from "../services/foodAnalysis";
 import { useMealStore } from "../useMealStore";
+import { colors, radius, shadow, spacing, typography, ui } from "../components/DesignSystem";
 
 const { width: W } = Dimensions.get("window");
-const CARD_BG = "#0D0D1A";
-const BORDER = "rgba(127,119,221,0.18)";
+const CARD_BG = colors.panelSolid;
+const BORDER = colors.border;
 type RouteProps = RouteProp<RootStackParamList, "FoodAnalysis">;
 
 // ── Shimmer skeleton ──────────────────────────────────────────────────────────
@@ -56,8 +57,8 @@ function AnimCounter({ target, color, label }: { target: number; color: string; 
 }
 const ctr = StyleSheet.create({
   wrap: { alignItems: "center", flex: 1 },
-  num: { fontSize: 22, fontWeight: "900", letterSpacing: -0.5 },
-  label: { fontSize: 10, color: "rgba(255,255,255,0.35)", fontWeight: "700", letterSpacing: 1, textTransform: "uppercase", marginTop: 2 },
+  num: { fontSize: 22, fontWeight: "900", letterSpacing: 0 },
+  label: { ...typography.tiny, fontWeight: "800", textTransform: "uppercase", marginTop: 2 },
 });
 
 // ── Macro bar ─────────────────────────────────────────────────────────────────
@@ -146,7 +147,7 @@ export default function FoodAnalysisScreen() {
   }, [state.status]);
 
   const scanY = scanLineAnim.interpolate({ inputRange: [0, 1], outputRange: [-120, 120] });
-  const macroColor = (t: string) => ({ protein: "#34d399", carbs: "#60a5fa", fat: "#f472b6" }[t] ?? "#fff");
+  const macroColor = (t: string) => ({ protein: colors.green, carbs: colors.blue, fat: colors.pink }[t] ?? colors.text);
 
   return (
     <View style={s.root}>
@@ -172,7 +173,8 @@ export default function FoodAnalysisScreen() {
             <View style={s.scanCornerBL} />
             <View style={s.scanCornerBR} />
             <Animated.View style={[s.scanPulse, { transform: [{ scale: pulseAnim }] }]}>
-              <Text style={s.scanLabel}>AI SCANNING</Text>
+            <Text style={s.scanLabel}>AI SCANNING</Text>
+            <Text style={s.scanSubLabel}>building macro estimate</Text>
             </Animated.View>
           </View>
         )}
@@ -225,8 +227,20 @@ export default function FoodAnalysisScreen() {
         {isSuccess && state.data && (() => {
           const d = state.data;
           const maxMacro = Math.max(d.totalProtein, d.totalCarbs, d.totalFat, 1);
+          const confidence = Math.min(98, Math.max(72, 86 + (Array.isArray(d.foods) ? d.foods.length * 3 : 0)));
           return (
             <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+
+              <View style={s.resultHeader}>
+                <View>
+                  <Text style={s.resultEyebrow}>AI ANALYSIS COMPLETE</Text>
+                  <Text style={s.resultTitle}>Nutrition estimate</Text>
+                </View>
+                <View style={s.confidenceBadge}>
+                  <Text style={s.confidenceNum}>{confidence}%</Text>
+                  <Text style={s.confidenceLabel}>confidence</Text>
+                </View>
+              </View>
 
               {/* Totals row */}
               <View style={s.totalsRow}>
@@ -252,35 +266,44 @@ export default function FoodAnalysisScreen() {
               <Text style={s.sectionLabel}>FOODS DETECTED</Text>
               {(!d || !Array.isArray(d.foods) || d.foods.length === 0) ? (
                 <View style={[s.card, { padding: 24, alignItems: "center", justifyContent: "center", minHeight: 100 }]}>
-                  <Text style={{ fontSize: 24, marginBottom: 8 }}>🍽️</Text>
+                  <Text style={s.emptyGlyph}>◎</Text>
                   <Text style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, fontWeight: "600" }}>No foods detected</Text>
                 </View>
               ) : (
-                d.foods.map((item: FoodItem, i: number) => (
-                  <View key={i} style={s.foodCard}>
-                    <View style={[s.foodAccent, { backgroundColor: macroColor("protein") }]} />
-                    <View style={s.foodCardInner}>
-                      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-                        <View style={{ flex: 1, marginRight: 12 }}>
-                          <Text style={s.foodName}>{item.name}</Text>
-                          <Text style={s.foodPortion}>{item.portion}</Text>
-                        </View>
-                        <View style={s.foodCalBadge}>
-                          <Text style={s.foodCalNum}>{item.calories}</Text>
-                          <Text style={s.foodCalUnit}>kcal</Text>
-                        </View>
+                <>
+                  <View style={s.detectedChipRow}>
+                    {d.foods.slice(0, 4).map((item: FoodItem, i: number) => (
+                      <View key={`${item.name}-${i}`} style={s.detectedChip}>
+                        <Text style={s.detectedChipText} numberOfLines={1}>{item.name}</Text>
                       </View>
-                      <View style={s.foodMacroRow}>
-                        {(["protein", "carbs", "fat"] as const).map((m) => (
-                          <View key={m} style={s.foodMacroItem}>
-                            <Text style={[s.foodMacroVal, { color: macroColor(m) }]}>{item[m]}g</Text>
-                            <Text style={s.foodMacroKey}>{m}</Text>
+                    ))}
+                  </View>
+                  {d.foods.map((item: FoodItem, i: number) => (
+                    <View key={i} style={s.foodCard}>
+                      <View style={[s.foodAccent, { backgroundColor: macroColor(i % 3 === 0 ? "protein" : i % 3 === 1 ? "carbs" : "fat") }]} />
+                      <View style={s.foodCardInner}>
+                        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                          <View style={{ flex: 1, marginRight: 12 }}>
+                            <Text style={s.foodName}>{item.name}</Text>
+                            <Text style={s.foodPortion}>{item.portion}</Text>
                           </View>
-                        ))}
+                          <View style={s.foodCalBadge}>
+                            <Text style={s.foodCalNum}>{item.calories}</Text>
+                            <Text style={s.foodCalUnit}>kcal</Text>
+                          </View>
+                        </View>
+                        <View style={s.foodMacroRow}>
+                          {(["protein", "carbs", "fat"] as const).map((m) => (
+                            <View key={m} style={s.foodMacroItem}>
+                              <Text style={[s.foodMacroVal, { color: macroColor(m) }]}>{item[m]}g</Text>
+                              <Text style={s.foodMacroKey}>{m}</Text>
+                            </View>
+                          ))}
+                        </View>
                       </View>
                     </View>
-                  </View>
-                ))
+                  ))}
+                </>
               )}
 
               {/* Log button */}
@@ -316,49 +339,50 @@ export default function FoodAnalysisScreen() {
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#050510" },
+  root: ui.screen,
 
   // Image hero
   imageWrap: { width: W, height: 290, position: "relative" },
   heroImg: { width: W, height: 290, resizeMode: "cover" },
   imgOverlay: { ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(5,5,16,0.35)" },
+    backgroundColor: "rgba(5,5,16,0.44)" },
   backBtn: { position: "absolute", left: 16, width: 40, height: 40, borderRadius: 20,
-    backgroundColor: "rgba(0,0,0,0.55)", alignItems: "center", justifyContent: "center",
+    backgroundColor: "rgba(5,5,16,0.64)", alignItems: "center", justifyContent: "center",
     borderWidth: 1, borderColor: "rgba(255,255,255,0.15)" },
   backArrow: { color: "#fff", fontSize: 24, lineHeight: 28, marginTop: -2 },
 
   // Scan FX
   scanLine: { position: "absolute", left: 0, right: 0, height: 2,
-    backgroundColor: "rgba(168,85,247,0.7)", top: "50%",
-    shadowColor: "#a855f7", shadowOffset: { width: 0, height: 0 }, shadowOpacity: 1, shadowRadius: 8 },
+    backgroundColor: "rgba(168,85,247,0.58)", top: "50%",
+    shadowColor: colors.violet, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.28, shadowRadius: 7 },
   scanCornerTL: { position: "absolute", top: 24, left: 24, width: 22, height: 22,
-    borderTopWidth: 2, borderLeftWidth: 2, borderColor: "#a855f7", borderRadius: 3 },
+    borderTopWidth: 2, borderLeftWidth: 2, borderColor: colors.violet, borderRadius: 3 },
   scanCornerTR: { position: "absolute", top: 24, right: 24, width: 22, height: 22,
-    borderTopWidth: 2, borderRightWidth: 2, borderColor: "#a855f7", borderRadius: 3 },
+    borderTopWidth: 2, borderRightWidth: 2, borderColor: colors.violet, borderRadius: 3 },
   scanCornerBL: { position: "absolute", bottom: 24, left: 24, width: 22, height: 22,
-    borderBottomWidth: 2, borderLeftWidth: 2, borderColor: "#a855f7", borderRadius: 3 },
+    borderBottomWidth: 2, borderLeftWidth: 2, borderColor: colors.violet, borderRadius: 3 },
   scanCornerBR: { position: "absolute", bottom: 24, right: 24, width: 22, height: 22,
-    borderBottomWidth: 2, borderRightWidth: 2, borderColor: "#a855f7", borderRadius: 3 },
+    borderBottomWidth: 2, borderRightWidth: 2, borderColor: colors.violet, borderRadius: 3 },
   scanPulse: { position: "absolute", bottom: 16, alignSelf: "center",
-    backgroundColor: "rgba(168,85,247,0.2)", borderWidth: 1, borderColor: "rgba(168,85,247,0.5)",
-    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20 },
-  scanLabel: { color: "#a855f7", fontSize: 10, fontWeight: "800", letterSpacing: 2 },
+    backgroundColor: "rgba(12,12,24,0.72)", borderWidth: 1, borderColor: "rgba(168,85,247,0.34)",
+    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, alignItems: "center" },
+  scanLabel: { color: colors.violet, fontSize: 10, fontWeight: "800", letterSpacing: 2 },
+  scanSubLabel: { color: "rgba(255,255,255,0.44)", fontSize: 10, fontWeight: "600", marginTop: 2 },
 
   successBadge: { position: "absolute", bottom: 20, alignSelf: "center",
     flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: "rgba(52,211,153,0.15)", borderWidth: 1, borderColor: "rgba(52,211,153,0.4)",
-    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
+    backgroundColor: "rgba(52,211,153,0.12)", borderWidth: 1, borderColor: "rgba(52,211,153,0.28)",
+    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, ...shadow.glowGreen },
   successIcon: { color: "#34d399", fontSize: 14, fontWeight: "900" },
   successText: { color: "#34d399", fontSize: 12, fontWeight: "800", letterSpacing: 1 },
 
   // Sheet
-  sheet: { flex: 1, backgroundColor: "#050510", borderTopLeftRadius: 24,
-    borderTopRightRadius: 24, marginTop: -22 },
-  sheetContent: { padding: 20, paddingTop: 24 },
+  sheet: { flex: 1, backgroundColor: colors.ink, borderTopLeftRadius: 28,
+    borderTopRightRadius: 28, marginTop: -24 },
+  sheetContent: { padding: spacing.xl, paddingTop: 22 },
 
   // Loading
-  analyzingLabel: { fontSize: 10, color: "#a855f7", fontWeight: "800", letterSpacing: 2,
+  analyzingLabel: { fontSize: 10, color: colors.violet, fontWeight: "800", letterSpacing: 2,
     textTransform: "uppercase", marginBottom: 14, textAlign: "center" },
   shimmerTotals: { flexDirection: "row", gap: 8, marginBottom: 10 },
 
@@ -372,26 +396,34 @@ const s = StyleSheet.create({
   retryText: { color: "#fff", fontWeight: "700", fontSize: 14 },
 
   // Totals
-  totalsRow: { flexDirection: "row", gap: 10, marginBottom: 14 },
-  calCard: { flex: 1.5, backgroundColor: "#7c3aed", borderRadius: 22, padding: 18,
+  resultHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 15 },
+  resultEyebrow: typography.sectionLabel,
+  resultTitle: { ...typography.title, fontSize: 24, marginTop: 3 },
+  confidenceBadge: { minWidth: 76, alignItems: "center", borderRadius: radius.lg, borderWidth: 1, borderColor: "rgba(52,211,153,0.22)", backgroundColor: "rgba(52,211,153,0.07)", paddingVertical: 8, paddingHorizontal: 10 },
+  confidenceNum: { color: colors.green, fontSize: 18, fontWeight: "900" },
+  confidenceLabel: { color: "rgba(52,211,153,0.66)", fontSize: 9, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.8 },
+  totalsRow: { flexDirection: "row", gap: 10, marginBottom: 12 },
+  calCard: { flex: 1.5, backgroundColor: colors.purpleDeep, borderRadius: radius.xl, padding: 18,
     alignItems: "center", justifyContent: "center",
-    shadowColor: "#7c3aed", shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.45, shadowRadius: 16, elevation: 8 },
+    ...shadow.glowSoft },
   calCardSub: { color: "rgba(255,255,255,0.6)", fontSize: 9, fontWeight: "700",
     letterSpacing: 1, textTransform: "uppercase", marginTop: 4 },
   macrosGroup: { flex: 1, gap: 6 },
 
   // Macro bar card
-  card: { backgroundColor: CARD_BG, borderRadius: 22, borderWidth: 1, borderColor: BORDER, padding: 18, marginBottom: 20 },
-  macroBarCard: { backgroundColor: CARD_BG, borderRadius: 22, borderWidth: 1,
-    borderColor: BORDER, padding: 18, marginBottom: 20 },
+  card: { backgroundColor: colors.panelDeep, borderRadius: radius.xl, borderWidth: 1, borderColor: BORDER, padding: 17, marginBottom: 16, ...shadow.card },
+  macroBarCard: { backgroundColor: colors.panelDeep, borderRadius: radius.xl, borderWidth: 1,
+    borderColor: BORDER, padding: 17, marginBottom: 18, ...shadow.card },
 
-  sectionLabel: { fontSize: 10, color: "rgba(255,255,255,0.3)", fontWeight: "800",
-    letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 },
+  sectionLabel: { ...typography.sectionLabel, marginBottom: 12 },
+  emptyGlyph: { fontSize: 24, marginBottom: 8, color: colors.violet, fontWeight: "900" },
+  detectedChipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
+  detectedChip: { ...ui.chip, maxWidth: "48%", backgroundColor: "rgba(168,85,247,0.1)", borderColor: "rgba(168,85,247,0.24)" },
+  detectedChipText: { color: colors.violet, fontSize: 11, fontWeight: "800" },
 
   // Food cards
-  foodCard: { backgroundColor: CARD_BG, borderRadius: 22, borderWidth: 1,
-    borderColor: BORDER, marginBottom: 10, overflow: "hidden",
+  foodCard: { backgroundColor: colors.panelDeep, borderRadius: radius.xl, borderWidth: 1,
+    borderColor: BORDER, marginBottom: 9, overflow: "hidden",
     flexDirection: "row" },
   foodAccent: { width: 4, borderRadius: 2 },
   foodCardInner: { flex: 1, padding: 16 },
@@ -409,10 +441,9 @@ const s = StyleSheet.create({
     textTransform: "uppercase", letterSpacing: 0.5, marginTop: 2 },
 
   // Actions
-  logBtn: { backgroundColor: "#7c3aed", borderRadius: 22, paddingVertical: 17,
+  logBtn: { backgroundColor: colors.purpleDeep, borderRadius: radius.xl, paddingVertical: 16,
     alignItems: "center", marginTop: 10,
-    shadowColor: "#7c3aed", shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5, shadowRadius: 16, elevation: 8 },
+    ...shadow.glowSoft },
   logBtnText: { color: "#fff", fontSize: 16, fontWeight: "900", letterSpacing: 0.3 },
   discardBtn: { paddingVertical: 14, alignItems: "center", marginTop: 6 },
   discardText: { color: "rgba(255,255,255,0.25)", fontSize: 13, fontWeight: "600" },

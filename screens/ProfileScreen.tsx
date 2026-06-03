@@ -3,17 +3,17 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
   ScrollView,
-  TouchableOpacity,
   SafeAreaView,
   StatusBar,
   Animated,
   Easing,
 } from "react-native";
+import { colors, radius, shadow, spacing, typography, ui } from "../components/DesignSystem";
+import { PressScale } from "../components/PressScale";
 
-const CARD_BG = "#0D0D1A";
-const BORDER = "rgba(127,119,221,0.18)";
+const CARD_BG = colors.panelSolid;
+const BORDER = colors.border;
 
 function StatPill({ value, label, color }: { value: string; label: string; color: string }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -43,10 +43,10 @@ function GoalRow({ label, value, accent }: { label: string; value: string; accen
 
 function PrefRow({ label, value, onPress }: { label: string; value: string; onPress?: () => void }) {
   return (
-    <TouchableOpacity style={s.prefRow} onPress={onPress} activeOpacity={0.7}>
+    <PressScale style={s.prefRow} onPress={onPress}>
       <Text style={s.prefLabel}>{label}</Text>
-      <Text style={s.prefValue}>{value} ›</Text>
-    </TouchableOpacity>
+      <Text style={s.prefValue}>{value}  ›</Text>
+    </PressScale>
   );
 }
 
@@ -64,7 +64,7 @@ export default function ProfileScreen() {
     ).start();
   }, []);
 
-  const avatarGlow = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] });
+  const avatarGlow = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.16, 0.3] });
 
   return (
     <SafeAreaView style={s.screen}>
@@ -73,34 +73,20 @@ export default function ProfileScreen() {
 
         {/* Header */}
         <Animated.View style={[s.header, { opacity: headerAnim, transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }]}>
-          <Text style={s.headerTitle}>Profile</Text>
-          <TouchableOpacity style={s.settingsBtn} activeOpacity={0.7}>
-            <Text style={{ fontSize: 18 }}>⚙️</Text>
-          </TouchableOpacity>
+          <Text style={s.headerTitle}>Preferences & Goals</Text>
         </Animated.View>
 
-        {/* Profile Hero Card */}
+        {/* Overview Hero Card */}
         <View style={s.heroCard}>
-          {/* Ambient glow behind avatar */}
+          {/* Ambient glow behind activity orb */}
           <Animated.View style={[s.avatarGlowOrb, { opacity: avatarGlow }]} />
 
-          {/* Double ring avatar */}
-          <View style={s.avatarOuterRing}>
-            <View style={s.avatarInnerRing}>
-              <Image
-                source={{ uri: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256" }}
-                style={s.avatar}
-              />
-            </View>
+          {/* Activity Orb Illustration */}
+          <View style={s.illustrationWrapper}>
+            <Text style={s.illustrationIcon}>⚡</Text>
           </View>
-          <View style={s.onlineDot} />
 
-          <Text style={s.name}>Madhav Soni</Text>
-          <Text style={s.username}>@madhavsoni</Text>
-
-          <View style={s.premiumBadge}>
-            <Text style={s.premiumText}>👑  PREMIUM MEMBER</Text>
-          </View>
+          <Text style={s.statusText}>STAY CONSISTENT • ACTIVE JOURNEY</Text>
 
           {/* Stats row */}
           <View style={s.statsRow}>
@@ -123,14 +109,14 @@ export default function ProfileScreen() {
         <Text style={s.sectionLabel}>ACHIEVEMENTS</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.achieveScroll} contentContainerStyle={{ gap: 10, paddingRight: 20 }}>
           {[
-            { icon: "🔥", label: "14 Day\nStreak", color: "#facc15" },
-            { icon: "💪", label: "Protein\nGoal Hit", color: "#60a5fa" },
-            { icon: "🎯", label: "5/7 Days\nOn Goal", color: "#34d399" },
-            { icon: "🧬", label: "Fat-Burn\nZone", color: "#f472b6" },
-            { icon: "⚡", label: "AI Scan\nPro", color: "#a855f7" },
+            { icon: "14", label: "Day\nStreak", color: colors.amber },
+            { icon: "P", label: "Protein\nGoal Hit", color: colors.blue },
+            { icon: "5/7", label: "Days\nOn Goal", color: colors.green },
+            { icon: "Z", label: "Fat-Burn\nZone", color: colors.pink },
+            { icon: "AI", label: "Scan\nPro", color: colors.violet },
           ].map((a, i) => (
             <View key={i} style={[s.achieveCard, { borderColor: a.color + "33" }]}>
-              <Text style={{ fontSize: 24, marginBottom: 6 }}>{a.icon}</Text>
+              <Text style={[s.achieveGlyph, { color: a.color }]}>{a.icon}</Text>
               <Text style={[s.achieveLabel, { color: a.color }]}>{a.label}</Text>
             </View>
           ))}
@@ -146,10 +132,6 @@ export default function ProfileScreen() {
           <PrefRow label="Units" value="Metric (g, kcal)" />
         </View>
 
-        <TouchableOpacity style={s.logoutBtn} activeOpacity={0.7}>
-          <Text style={s.logoutText}>Log Out</Text>
-        </TouchableOpacity>
-
         <View style={{ height: 100 }} />
       </ScrollView>
     </SafeAreaView>
@@ -157,132 +139,117 @@ export default function ProfileScreen() {
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#050510" },
-  scroll: { paddingHorizontal: 20, paddingTop: 28, paddingBottom: 40 },
+  screen: ui.screen,
+  scroll: { paddingHorizontal: spacing.xl, paddingTop: 24, paddingBottom: 40 },
 
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24 },
-  headerTitle: { fontSize: 36, color: "#fff", fontWeight: "900", letterSpacing: -1 },
-  settingsBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: CARD_BG, borderWidth: 1, borderColor: BORDER, alignItems: "center", justifyContent: "center" },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
+  headerTitle: { ...typography.hero, fontSize: 32 },
 
   heroCard: {
-    backgroundColor: CARD_BG,
-    borderRadius: 28,
+    backgroundColor: colors.panelDeep,
+    borderRadius: radius.xxl,
     borderWidth: 1,
     borderColor: BORDER,
-    padding: 28,
+    paddingVertical: 24,
+    paddingHorizontal: 22,
     alignItems: "center",
-    marginBottom: 24,
-    shadowColor: "#7c3aed",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.2,
-    shadowRadius: 24,
-    elevation: 10,
+    marginBottom: 20,
+    ...shadow.card,
     overflow: "hidden",
   },
   avatarGlowOrb: {
     position: "absolute",
-    top: -40,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: "#7c3aed",
+    top: -34,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: colors.purple,
     opacity: 0.06,
   },
 
-  // Double ring avatar
-  avatarOuterRing: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    borderWidth: 2.5,
-    borderColor: "#7c3aed",
-    padding: 4,
-    marginBottom: 14,
-  },
-  avatarInnerRing: {
-    flex: 1,
-    borderRadius: 44,
+  // Illustration orb wrapper
+  illustrationWrapper: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: "rgba(124, 58, 237, 0.1)",
     borderWidth: 1.5,
-    borderColor: "rgba(168,85,247,0.35)",
-    overflow: "hidden",
+    borderColor: "rgba(124, 58, 237, 0.24)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+    position: "relative",
+    zIndex: 1,
   },
-  avatar: { width: "100%", height: "100%", borderRadius: 42 },
-  onlineDot: { position: "absolute", top: 90, left: "50%", marginLeft: 22, width: 13, height: 13, borderRadius: 7, backgroundColor: "#34d399", borderWidth: 2.5, borderColor: "#050510" },
-
-  name: { fontSize: 22, color: "#fff", fontWeight: "900", letterSpacing: -0.5 },
-  username: { fontSize: 13, color: "rgba(255, 255, 255, 0.35)", marginTop: 3, marginBottom: 14 },
-
-  premiumBadge: {
-    paddingHorizontal: 18,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(250,204,21,0.3)",
-    backgroundColor: "rgba(250,204,21,0.07)",
-    marginBottom: 20,
+  illustrationIcon: {
+    fontSize: 32,
+    color: colors.purple,
   },
-  premiumText: { fontSize: 11, color: "#facc15", fontWeight: "800", letterSpacing: 1.5 },
+  statusText: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1.4,
+    color: colors.violet,
+    textTransform: "uppercase",
+    marginBottom: 18,
+    zIndex: 1,
+  },
 
   statsRow: { flexDirection: "row", gap: 10, width: "100%" },
   statPill: {
     flex: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    backgroundColor: "rgba(255, 255, 255, 0.026)",
     borderRadius: 16,
     borderWidth: 1,
-    padding: 12,
+    paddingVertical: 13,
+    paddingHorizontal: 8,
     alignItems: "center",
   },
-  statPillNum: { fontSize: 18, fontWeight: "900", letterSpacing: -0.5 },
+  statPillNum: { fontSize: 18, fontWeight: "900", letterSpacing: 0 },
   statPillLabel: { fontSize: 9, color: "rgba(255,255,255,0.3)", fontWeight: "700", letterSpacing: 1, marginTop: 3, textAlign: "center" },
 
-  sectionLabel: { fontSize: 10, color: "rgba(255,255,255,0.3)", fontWeight: "800", letterSpacing: 2, textTransform: "uppercase", marginBottom: 10, marginTop: 4 },
+  sectionLabel: { ...typography.sectionLabel, marginBottom: 10, marginTop: 4 },
 
   card: {
-    backgroundColor: CARD_BG,
-    borderRadius: 22,
+    backgroundColor: colors.panelDeep,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: BORDER,
-    marginBottom: 20,
+    marginBottom: 18,
     overflow: "hidden",
+    ...shadow.card,
   },
 
   goalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 16,
+    paddingVertical: 15,
     paddingHorizontal: 18,
     borderLeftWidth: 3,
     borderBottomWidth: 0.5,
     borderBottomColor: "rgba(255,255,255,0.04)",
   },
   goalLabel: { fontSize: 14, color: "rgba(255,255,255,0.65)", fontWeight: "600" },
-  goalValue: { fontSize: 15, fontWeight: "900", letterSpacing: -0.3 },
+  goalValue: { fontSize: 15, fontWeight: "900", letterSpacing: 0 },
 
-  achieveScroll: { marginBottom: 20 },
+  achieveScroll: { marginBottom: 18 },
   achieveCard: {
-    backgroundColor: CARD_BG,
+    backgroundColor: colors.panelDeep,
     borderRadius: 18,
     borderWidth: 1,
-    padding: 16,
+    paddingVertical: 15,
+    paddingHorizontal: 12,
     alignItems: "center",
-    width: 90,
+    justifyContent: "center",
+    width: 92,
+    minHeight: 92,
   },
+  achieveGlyph: { fontSize: 18, marginBottom: 7, fontWeight: "900", letterSpacing: 0 },
   achieveLabel: { fontSize: 10, fontWeight: "700", textAlign: "center", lineHeight: 14 },
 
-  prefRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 16, paddingHorizontal: 18 },
+  prefRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 15, paddingHorizontal: 18 },
   prefLabel: { fontSize: 14, color: "rgba(255,255,255,0.65)", fontWeight: "600" },
   prefValue: { fontSize: 13, color: "#a855f7", fontWeight: "700" },
   prefDivider: { height: 0.5, backgroundColor: "rgba(255,255,255,0.05)", marginHorizontal: 18 },
-
-  logoutBtn: {
-    marginTop: 4,
-    paddingVertical: 16,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "rgba(239,68,68,0.25)",
-    backgroundColor: "rgba(239,68,68,0.05)",
-    alignItems: "center",
-  },
-  logoutText: { color: "#ef4444", fontSize: 14, fontWeight: "800", letterSpacing: 0.5 },
 });
