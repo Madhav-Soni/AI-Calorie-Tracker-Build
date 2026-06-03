@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, StatusBar, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, StatusBar, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { PressScale } from '../../components/PressScale';
 import { colors, radius, shadow, spacing, typography, ui } from '../../components/DesignSystem';
@@ -129,18 +130,17 @@ export default function RegisterScreen({ navigation }: any) {
           </View>
 
           {/* Button */}
-          <TouchableOpacity
+          <PressScale
             style={[styles.primaryButton, loading && styles.disabledButton]}
             onPress={handleRegister}
             disabled={loading}
-            activeOpacity={0.8}
           >
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={styles.primaryButtonText}>Create Account</Text>
             )}
-          </TouchableOpacity>
+          </PressScale>
 
           {/* Sign In Link */}
           <View style={styles.signinContainer}>

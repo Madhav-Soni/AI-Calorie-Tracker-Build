@@ -1,7 +1,6 @@
 import { initializeApp, getApps, FirebaseApp } from "firebase/app";
 import { getAuth, Auth } from "firebase/auth";
 import { getFirestore, Firestore } from "firebase/firestore";
-import auth from "@react-native-firebase/auth";
 
 // Firebase configuration
 const firebaseConfig = {
@@ -14,14 +13,17 @@ const firebaseConfig = {
 };
 
 let app: FirebaseApp;
+let auth: Auth;
 let db: Firestore;
 
 if (getApps().length === 0) {
   app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
   db = getFirestore(app);
 } else {
   app = getApps()[0];
+  auth = getAuth(app);
   db = getFirestore(app);
 }
 
-export { app, db, auth };
+export { app, auth, db };

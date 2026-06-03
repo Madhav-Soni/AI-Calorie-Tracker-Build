@@ -6,9 +6,10 @@ interface PressScaleProps {
   children: React.ReactNode;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
+  disabled?: boolean;
 }
 
-export function PressScale({ children, onPress, style }: PressScaleProps) {
+export function PressScale({ children, onPress, style, disabled }: PressScaleProps) {
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -17,11 +18,14 @@ export function PressScale({ children, onPress, style }: PressScaleProps) {
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={disabled ? undefined : onPress}
+      disabled={disabled}
       onPressIn={() => {
+        if (disabled) return;
         scale.value = withSpring(0.96, { damping: 10, stiffness: 200 });
       }}
       onPressOut={() => {
+        if (disabled) return;
         scale.value = withSpring(1, { damping: 10, stiffness: 200 });
       }}
       style={{ activeOpacity: 1 } as any}

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, StatusBar, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, StatusBar, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { PressScale } from '../../components/PressScale';
 import { colors, radius, shadow, spacing, typography, ui } from '../../components/DesignSystem';
@@ -83,26 +84,24 @@ export default function ForgotPasswordScreen({ navigation }: any) {
           )}
 
           {!sent ? (
-            <TouchableOpacity
+            <PressScale
               style={[styles.primaryButton, loading && styles.disabledButton]}
               onPress={handleReset}
               disabled={loading}
-              activeOpacity={0.8}
             >
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
                 <Text style={styles.primaryButtonText}>Send Reset Link</Text>
               )}
-            </TouchableOpacity>
+            </PressScale>
           ) : (
-            <TouchableOpacity
+            <PressScale
               style={styles.primaryButton}
               onPress={() => navigation.navigate('Login')}
-              activeOpacity={0.8}
             >
               <Text style={styles.primaryButtonText}>Back to Login</Text>
-            </TouchableOpacity>
+            </PressScale>
           )}
         </Animated.View>
       </ScrollView>

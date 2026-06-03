@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { 
   User, 
   signInWithEmailAndPassword, 
@@ -6,12 +6,10 @@ import {
   signOut, 
   onAuthStateChanged,
   sendPasswordResetEmail,
-  GoogleAuthProvider,
-  signInWithPopup,
   updateProfile
-} from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db } from '../firebase/config';
+} from "firebase/auth";
+import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import { auth, db } from "../firebase/config";
 
 interface AuthContextType {
   user: User | null;
@@ -20,7 +18,6 @@ interface AuthContextType {
   register: (email: string, password: string, fullName: string) => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
   checkOnboardingComplete: (userId: string) => Promise<boolean>;
 }
 
@@ -50,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await updateProfile(userCredential.user, { displayName: fullName });
     
     // Create user document in Firestore
-    const userRef = doc(db, 'users', userCredential.user.uid);
+    const userRef = doc(db, "users", userCredential.user.uid);
     await setDoc(userRef, {
       id: userCredential.user.uid,
       name: fullName,
@@ -68,20 +65,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await sendPasswordResetEmail(auth, email);
   };
 
-  const signInWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
-  };
-
   const checkOnboardingComplete = async (userId: string): Promise<boolean> => {
     try {
-      const userDoc = await getDoc(doc(db, 'users', userId));
+      const userDoc = await getDoc(doc(db, "users", userId));
       if (userDoc.exists()) {
         return userDoc.data().onboardingCompleted || false;
       }
       return false;
     } catch (error) {
-      console.error('Error checking onboarding status:', error);
+      console.error("Error checking onboarding status:", error);
       return false;
     }
   };
@@ -93,7 +85,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     register,
     logout,
     resetPassword,
-    signInWithGoogle,
     checkOnboardingComplete,
   };
 
@@ -103,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }
