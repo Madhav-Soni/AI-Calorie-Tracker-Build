@@ -8,12 +8,11 @@ import {
   StatusBar,
   Animated,
   Easing,
+  Alert,
 } from "react-native";
 import { colors, radius, shadow, spacing, typography, ui } from "../components/DesignSystem";
 import { PressScale } from "../components/PressScale";
-
-const CARD_BG = colors.panelSolid;
-const BORDER = colors.border;
+import { useMealStore } from "../useMealStore";
 
 function StatPill({ value, label, color }: { value: string; label: string; color: string }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -41,11 +40,11 @@ function GoalRow({ label, value, accent }: { label: string; value: string; accen
   );
 }
 
-function PrefRow({ label, value, onPress }: { label: string; value: string; onPress?: () => void }) {
+function PrefRow({ label, value, onPress, isDestructive = false }: { label: string; value: string; onPress?: () => void; isDestructive?: boolean }) {
   return (
     <PressScale style={s.prefRow} onPress={onPress}>
-      <Text style={s.prefLabel}>{label}</Text>
-      <Text style={s.prefValue}>{value}  ›</Text>
+      <Text style={[s.prefLabel, isDestructive ? { color: colors.red } : null]}>{label}</Text>
+      <Text style={[s.prefValue, isDestructive ? { color: colors.red } : null]}>{value}  ›</Text>
     </PressScale>
   );
 }
@@ -53,6 +52,14 @@ function PrefRow({ label, value, onPress }: { label: string; value: string; onPr
 export default function ProfileScreen() {
   const headerAnim = useRef(new Animated.Value(0)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
+
+  const userProfile = useMealStore((s) => s.userProfile);
+  const GOAL = useMealStore((s) => s.goals);
+  const resetOnboarding = useMealStore((s) => s.resetOnboarding);
+  const weightHistory = useMealStore((s) => s.weightHistory);
+  const getDailyTotals = useMealStore((s) => s.getDailyTotals);
+
+  const totals = getDailyTotals();
 
   useEffect(() => {
     Animated.timing(headerAnim, { toValue: 1, duration: 700, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
@@ -66,6 +73,23 @@ export default function ProfileScreen() {
 
   const avatarGlow = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.16, 0.3] });
 
+  const handleReset = () => {
+    Alert.alert(
+      "Reset App Data",
+      "Are you sure you want to clear your goals, profile, and all logged meals? This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Reset Everything", style: "destructive", onPress: () => resetOnboarding() }
+      ]
+    );
+  };
+
+  const currentWeight = userProfile?.weight || (weightHistory.length > 0 ? weightHistory[weightHistory.length - 1].weight : "--");
+  const streak = weightHistory.length > 0 ? Math.min(30, weightHistory.length) : 0;
+  const activityLevelLabel = userProfile?.activityLevel
+    ? userProfile.activityLevel.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase())
+    : "Lightly Active";
+
   return (
     <SafeAreaView style={s.screen}>
       <StatusBar barStyle="light-content" />
@@ -78,58 +102,62 @@ export default function ProfileScreen() {
 
         {/* Overview Hero Card */}
         <View style={s.heroCard}>
-          {/* Ambient glow behind activity orb */}
           <Animated.View style={[s.avatarGlowOrb, { opacity: avatarGlow }]} />
 
-          {/* Activity Orb Illustration */}
           <View style={s.illustrationWrapper}>
             <Text style={s.illustrationIcon}>⚡</Text>
           </View>
 
-          <Text style={s.statusText}>STAY CONSISTENT • ACTIVE JOURNEY</Text>
+          <Text style={s.statusText}>
+            {userProfile?.goal
+              ? `${userProfile.goal.replace("_", " ").toUpperCase()} • ACTIVE JOURNEY`
+              : "MAINTAIN • ACTIVE JOURNEY"}
+          </Text>
 
           {/* Stats row */}
           <View style={s.statsRow}>
-            <StatPill value="14" label="STREAK" color="#facc15" />
-            <StatPill value="47" label="DAYS LOGGED" color="#a855f7" />
-            <StatPill value="1,904" label="AVG KCAL" color="#34d399" />
+            <StatPill value={`${streak}`} label="STREAK" color={colors.amber} />
+            <StatPill value={`${weightHistory.length}`} label="WEIGHT LOGS" color={colors.purple} />
+            <StatPill value={`${currentWeight}`} label="CURRENT (KG)" color={colors.green} />
           </View>
         </View>
 
         {/* Goals & Plan */}
         <Text style={s.sectionLabel}>GOALS & PLAN</Text>
         <View style={s.card}>
-          <GoalRow label="Daily Calories" value="2,000 kcal" accent="#a855f7" />
-          <GoalRow label="Target Protein" value="150g" accent="#60a5fa" />
-          <GoalRow label="Target Carbs" value="200g" accent="#34d399" />
-          <GoalRow label="Target Fat" value="65g" accent="#f472b6" />
+          <GoalRow label="Daily Calories" value={`${GOAL.calories.toLocaleString()} kcal`} accent={colors.violet} />
+          <GoalRow label="Target Protein" value={`${GOAL.protein}g`} accent={colors.blue} />
+          <GoalRow label="Target Carbs" value={`${GOAL.carbs}g`} accent={colors.green} />
+          <GoalRow label="Target Fat" value={`${GOAL.fat}g`} accent={colors.pink} />
         </View>
 
-        {/* Achievements strip */}
-        <Text style={s.sectionLabel}>ACHIEVEMENTS</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.achieveScroll} contentContainerStyle={{ gap: 10, paddingRight: 20 }}>
-          {[
-            { icon: "14", label: "Day\nStreak", color: colors.amber },
-            { icon: "P", label: "Protein\nGoal Hit", color: colors.blue },
-            { icon: "5/7", label: "Days\nOn Goal", color: colors.green },
-            { icon: "Z", label: "Fat-Burn\nZone", color: colors.pink },
-            { icon: "AI", label: "Scan\nPro", color: colors.violet },
-          ].map((a, i) => (
-            <View key={i} style={[s.achieveCard, { borderColor: a.color + "33" }]}>
-              <Text style={[s.achieveGlyph, { color: a.color }]}>{a.icon}</Text>
-              <Text style={[s.achieveLabel, { color: a.color }]}>{a.label}</Text>
-            </View>
-          ))}
-        </ScrollView>
+        {/* User Details */}
+        <Text style={s.sectionLabel}>BIOMETRICS</Text>
+        <View style={s.card}>
+          <View style={s.detailRow}>
+            <Text style={s.detailLabel}>Age</Text>
+            <Text style={s.detailValue}>{userProfile?.age ? `${userProfile.age} yrs` : "--"}</Text>
+          </View>
+          <View style={s.prefDivider} />
+          <View style={s.detailRow}>
+            <Text style={s.detailLabel}>Height</Text>
+            <Text style={s.detailValue}>{userProfile?.height ? `${userProfile.height} cm` : "--"}</Text>
+          </View>
+          <View style={s.prefDivider} />
+          <View style={s.detailRow}>
+            <Text style={s.detailLabel}>Activity Multiplier</Text>
+            <Text style={s.detailValue}>{activityLevelLabel}</Text>
+          </View>
+        </View>
 
         {/* App Preferences */}
         <Text style={s.sectionLabel}>APP PREFERENCES</Text>
         <View style={s.card}>
           <PrefRow label="AI Coach Personality" value="Encouraging" />
           <View style={s.prefDivider} />
-          <PrefRow label="Notifications" value="Enabled" />
+          <PrefRow label="Units" value="Metric (g, kcal, kg)" />
           <View style={s.prefDivider} />
-          <PrefRow label="Units" value="Metric (g, kcal)" />
+          <PrefRow label="Reset App Data" value="Clear all" onPress={handleReset} isDestructive={true} />
         </View>
 
         <View style={{ height: 100 }} />
@@ -140,18 +168,18 @@ export default function ProfileScreen() {
 
 const s = StyleSheet.create({
   screen: ui.screen,
-  scroll: { paddingHorizontal: spacing.xl, paddingTop: 24, paddingBottom: 40 },
+  scroll: { paddingHorizontal: spacing.xl, paddingTop: 20, paddingBottom: 40 },
 
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
-  headerTitle: { ...typography.hero, fontSize: 32 },
+  headerTitle: { ...typography.hero, fontSize: 30 },
 
   heroCard: {
     backgroundColor: colors.panelDeep,
-    borderRadius: radius.xxl,
+    borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: BORDER,
+    borderColor: colors.border,
     paddingVertical: 24,
-    paddingHorizontal: 22,
+    paddingHorizontal: 20,
     alignItems: "center",
     marginBottom: 20,
     ...shadow.card,
@@ -167,11 +195,10 @@ const s = StyleSheet.create({
     opacity: 0.06,
   },
 
-  // Illustration orb wrapper
   illustrationWrapper: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     backgroundColor: "rgba(124, 58, 237, 0.1)",
     borderWidth: 1.5,
     borderColor: "rgba(124, 58, 237, 0.24)",
@@ -182,39 +209,39 @@ const s = StyleSheet.create({
     zIndex: 1,
   },
   illustrationIcon: {
-    fontSize: 32,
+    fontSize: 28,
     color: colors.purple,
   },
   statusText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "800",
-    letterSpacing: 1.4,
+    letterSpacing: 1.5,
     color: colors.violet,
     textTransform: "uppercase",
     marginBottom: 18,
     zIndex: 1,
   },
 
-  statsRow: { flexDirection: "row", gap: 10, width: "100%" },
+  statsRow: { flexDirection: "row", gap: 8, width: "100%" },
   statPill: {
     flex: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.026)",
-    borderRadius: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.02)",
+    borderRadius: 14,
     borderWidth: 1,
-    paddingVertical: 13,
-    paddingHorizontal: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 6,
     alignItems: "center",
   },
-  statPillNum: { fontSize: 18, fontWeight: "900", letterSpacing: 0 },
-  statPillLabel: { fontSize: 9, color: "rgba(255,255,255,0.3)", fontWeight: "700", letterSpacing: 1, marginTop: 3, textAlign: "center" },
+  statPillNum: { fontSize: 16, fontWeight: "900", letterSpacing: -0.5 },
+  statPillLabel: { fontSize: 9, color: colors.textDim, fontWeight: "700", letterSpacing: 0.5, marginTop: 3, textAlign: "center" },
 
   sectionLabel: { ...typography.sectionLabel, marginBottom: 10, marginTop: 4 },
 
   card: {
     backgroundColor: colors.panelDeep,
-    borderRadius: radius.xl,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: BORDER,
+    borderColor: colors.border,
     marginBottom: 18,
     overflow: "hidden",
     ...shadow.card,
@@ -224,32 +251,27 @@ const s = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 15,
-    paddingHorizontal: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderLeftWidth: 3,
     borderBottomWidth: 0.5,
     borderBottomColor: "rgba(255,255,255,0.04)",
   },
-  goalLabel: { fontSize: 14, color: "rgba(255,255,255,0.65)", fontWeight: "600" },
-  goalValue: { fontSize: 15, fontWeight: "900", letterSpacing: 0 },
+  goalLabel: { fontSize: 13, color: colors.textMuted, fontWeight: "600" },
+  goalValue: { fontSize: 14, fontWeight: "800" },
 
-  achieveScroll: { marginBottom: 18 },
-  achieveCard: {
-    backgroundColor: colors.panelDeep,
-    borderRadius: 18,
-    borderWidth: 1,
-    paddingVertical: 15,
-    paddingHorizontal: 12,
+  detailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    justifyContent: "center",
-    width: 92,
-    minHeight: 92,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
-  achieveGlyph: { fontSize: 18, marginBottom: 7, fontWeight: "900", letterSpacing: 0 },
-  achieveLabel: { fontSize: 10, fontWeight: "700", textAlign: "center", lineHeight: 14 },
+  detailLabel: { fontSize: 13, color: colors.textMuted, fontWeight: "600" },
+  detailValue: { fontSize: 14, color: colors.text, fontWeight: "700" },
 
-  prefRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 15, paddingHorizontal: 18 },
-  prefLabel: { fontSize: 14, color: "rgba(255,255,255,0.65)", fontWeight: "600" },
-  prefValue: { fontSize: 13, color: "#a855f7", fontWeight: "700" },
-  prefDivider: { height: 0.5, backgroundColor: "rgba(255,255,255,0.05)", marginHorizontal: 18 },
+  prefRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 14, paddingHorizontal: 16 },
+  prefLabel: { fontSize: 13, color: colors.textMuted, fontWeight: "600" },
+  prefValue: { fontSize: 13, color: colors.violet, fontWeight: "700" },
+  prefDivider: { height: 0.5, backgroundColor: "rgba(255,255,255,0.04)", marginHorizontal: 16 },
 });

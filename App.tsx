@@ -7,14 +7,18 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 
 import type { AnalysisResult } from "./services/foodAnalysis";
+import { useMealStore } from "./useMealStore";
 
 import HomeScreen from "./screens/HomeScreen";
+import ProgressScreen from "./screens/ProgressScreen";
 import HistoryScreen from "./screens/HistoryScreen";
 import ProfileScreen from "./screens/ProfileScreen";
 import CameraScreen from "./screens/CameraScreen";
 import FoodAnalysisScreen from "./screens/FoodAnalysisScreen";
+import OnboardingScreen from "./screens/OnboardingScreen";
 
 export type RootStackParamList = {
+  Onboarding: undefined;
   Tabs: undefined;
   Camera: undefined;
   FoodAnalysis: { imageUri: string; analysisResult?: AnalysisResult };
@@ -22,6 +26,8 @@ export type RootStackParamList = {
 
 export type TabParamList = {
   Home: undefined;
+  Progress: undefined;
+  ScanPlaceholder: undefined;
   History: undefined;
   Profile: undefined;
 };
@@ -44,9 +50,14 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     const focused = state.index === index;
     const icons: Record<string, string> = {
       Home: "⌂",
+      Progress: "📈",
       History: "◷",
       Profile: "◉",
     };
+
+    if (route.name === "ScanPlaceholder") {
+      return <View key={route.key} style={styles.fabPlaceholder} />;
+    }
 
     return (
       <PressScale
@@ -73,17 +84,17 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
       <View style={styles.tabBar}>
         {renderTab(0)}
         {renderTab(1)}
-        <View style={styles.fabPlaceholder} />
         {renderTab(2)}
+        {renderTab(3)}
+        {renderTab(4)}
       </View>
 
-      {/* Center Floating Camera FAB */}
+      {/* Center Floating Camera FAB - floats ABOVE nav and uses only shadow */}
       <PressScale
         style={styles.fab}
         onPress={() => rootNav?.navigate("Camera")}
       >
         <Text style={styles.fabIcon}>⌁</Text>
-        <View style={styles.fabPulse} />
       </PressScale>
     </View>
   );
@@ -97,6 +108,8 @@ function TabNavigator() {
       screenOptions={{ headerShown: false }}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Progress" component={ProgressScreen} />
+      <Tab.Screen name="ScanPlaceholder" component={HomeScreen} />
       <Tab.Screen name="History" component={HistoryScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
@@ -104,16 +117,24 @@ function TabNavigator() {
 }
 
 export default function App() {
+  const onboardingCompleted = useMealStore((s) => s.onboardingCompleted);
+
   return (
     <NavigationContainer>
       <Stack.Navigator id="StackNavigator" screenOptions={{ headerShown: false, animation: "slide_from_bottom" }}>
-        <Stack.Screen name="Tabs" component={TabNavigator} options={{ animation: "none" }} />
-        <Stack.Screen name="Camera" component={CameraScreen} />
-        <Stack.Screen
-          name="FoodAnalysis"
-          component={FoodAnalysisScreen}
-          options={{ animation: "slide_from_right" }}
-        />
+        {!onboardingCompleted ? (
+          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        ) : (
+          <>
+            <Stack.Screen name="Tabs" component={TabNavigator} options={{ animation: "none" }} />
+            <Stack.Screen name="Camera" component={CameraScreen} />
+            <Stack.Screen
+              name="FoodAnalysis"
+              component={FoodAnalysisScreen}
+              options={{ animation: "slide_from_right" }}
+            />
+          </>
+        )}
       </Stack.Navigator>
     </NavigationContainer>
   );
@@ -130,86 +151,77 @@ const styles = StyleSheet.create({
     borderColor: "rgba(139, 126, 246, 0.16)",
     borderRadius: 28,
     overflow: "hidden",
+    height: 80,
     ...shadow.card,
   },
   tabBar: {
     flexDirection: "row",
-    minHeight: 68,
-    paddingBottom: 9,
-    paddingTop: 10,
+    height: "100%",
+    paddingBottom: 4,
     paddingHorizontal: 8,
     alignItems: "center",
+    justifyContent: "space-between",
   },
   tabItem: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
-    minHeight: 48,
+    gap: 3,
+    height: "100%",
   },
   activeRail: {
-    width: 18,
+    width: 14,
     height: 3,
     borderRadius: 2,
     backgroundColor: "transparent",
-    marginBottom: 1,
+    marginBottom: 2,
   },
   activeRailVisible: {
     backgroundColor: colors.violet,
-    shadowColor: colors.violet,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
   },
   tabIcon: {
-    fontSize: 19,
+    fontSize: 20,
     color: colors.textDim,
-    lineHeight: 20,
+    lineHeight: 22,
   },
   tabIconActive: {
     color: colors.violet,
   },
   tabLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700",
     color: colors.textDim,
-    letterSpacing: 0,
+    letterSpacing: -0.2,
   },
   tabLabelActive: {
     color: colors.violet,
   },
   fabPlaceholder: {
-    width: 74,
-    height: 44,
+    width: 60,
+    height: 60,
   },
   fab: {
     position: "absolute",
-    top: -18,
+    top: -12,
     alignSelf: "center",
-    width: 58,
-    height: 58,
+    width: 60,
+    height: 60,
     borderRadius: radius.pill,
     backgroundColor: colors.purpleDeep,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 3,
-    borderColor: colors.ink,
-    ...shadow.glowPurple,
+    borderColor: "#080813",
+    elevation: 8,
+    shadowColor: colors.purple,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
   },
   fabIcon: {
-    fontSize: 26,
-    lineHeight: 28,
+    fontSize: 28,
+    lineHeight: 30,
     color: "#fff",
     fontWeight: "900",
-  },
-  fabPulse: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    bottom: 8,
-    left: 8,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.24)",
   },
 });

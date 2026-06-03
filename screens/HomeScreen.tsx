@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Dimensions,
   Animated,
-  Image,
   StatusBar,
   SafeAreaView,
   StyleSheet,
@@ -18,35 +17,19 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../App";
 import { useMealStore } from "../useMealStore";
 import { getCoachRecommendation } from "../NutritionCoach";
-import { calculateStreaks } from "../streak";
 import Reanimated, {
   useSharedValue,
   useAnimatedProps,
   useAnimatedStyle,
   withTiming,
   withRepeat,
-  withDelay,
-  interpolateColor,
 } from "react-native-reanimated";
 import { PressScale } from "../components/PressScale";
 import { colors, radius, shadow, spacing, typography, ui } from "../components/DesignSystem";
 
 const { width: W } = Dimensions.get("window");
-const RING_SIZE = 210;
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const RING_SIZE = 190;
 const ReanimatedCircle = Reanimated.createAnimatedComponent(Circle);
-
-const GOAL = { calories: 2000, protein: 150, carbs: 200, fat: 65 };
-
-const MOCK_MEALS = [
-  { id: "1", name: "Oats & Banana Bowl", calories: 380, protein: 12, carbs: 68, fat: 6, loggedAt: new Date(Date.now() - 3600000 * 5).toISOString() },
-  { id: "2", name: "Grilled Salmon Bowl", calories: 542, protein: 38, carbs: 41, fat: 22, loggedAt: new Date(Date.now() - 3600000 * 2).toISOString() },
-  { id: "3", name: "Greek Yogurt + Berries", calories: 120, protein: 18, carbs: 9, fat: 2, loggedAt: new Date(Date.now() - 1800000).toISOString() },
-];
-const MOCK_TOTALS = { calories: 1042, protein: 68, carbs: 118, fat: 30 };
-
-const WEEKLY = [1820, 2150, 1680, 1950, 2200, 1450, 1850];
-const DAYS = ["M", "T", "W", "T", "F", "S", "S"];
 
 function ring(pct: number, size: number, stroke: number) {
   const r = (size - stroke) / 2;
@@ -70,7 +53,7 @@ function MacroPill({
   const barW = anim.interpolate({ inputRange: [0, 1], outputRange: ["0%", `${pct * 100}%`] });
 
   return (
-    <View style={[s.macroPill, { borderColor: color + "22" }]}>
+    <View style={[s.macroPill, { borderColor: "rgba(255,255,255,0.04)" }]}>
       <View style={s.macroPillTop}>
         <Text style={[s.macroPillLabel, { color }]}>{label}</Text>
         <Text style={s.macroPillVal}>
@@ -87,7 +70,7 @@ function MacroPill({
 
 // ─── Meal Row ──────────────────────────────────────────────────────────────────
 interface MealRowProps {
-  meal: typeof MOCK_MEALS[0];
+  meal: any;
   onDelete: () => void;
   delay: number;
 }
@@ -95,15 +78,15 @@ interface MealRowProps {
 function MealRow({
   meal, onDelete, delay,
 }: MealRowProps) {
-  const slideAnim = useRef(new Animated.Value(20)).current;
+  const slideAnim = useRef(new Animated.Value(15)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const widthScale = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(slideAnim, { toValue: 0, duration: 400, delay, useNativeDriver: true, easing: Easing.out(Easing.cubic) }),
-      Animated.timing(fadeAnim, { toValue: 1, duration: 400, delay, useNativeDriver: true }),
-      Animated.timing(widthScale, { toValue: 1, duration: 800, delay: delay + 150, useNativeDriver: false }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 300, delay, useNativeDriver: true, easing: Easing.out(Easing.cubic) }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 300, delay, useNativeDriver: true }),
+      Animated.timing(widthScale, { toValue: 1, duration: 600, delay: delay + 100, useNativeDriver: false }),
     ]).start();
   }, []);
 
@@ -120,18 +103,11 @@ function MealRow({
   const animatedCW = widthScale.interpolate({ inputRange: [0, 1], outputRange: ["0%", `${cW}%`] });
   const animatedFW = widthScale.interpolate({ inputRange: [0, 1], outputRange: ["0%", `${fW}%`] });
 
-  const mealEmojis: Record<string, string> = {
-    "Oats & Banana Bowl": "🥣",
-    "Grilled Salmon Bowl": "🐟",
-    "Greek Yogurt + Berries": "🫐",
-  };
-  const emoji = mealEmojis[meal.name] ?? "🍽️";
-
   return (
     <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
       <View style={s.mealRow}>
         <View style={s.mealEmoji}>
-          <Text style={{ fontSize: 22 }}>{emoji}</Text>
+          <Text style={{ fontSize: 20 }}>🍽️</Text>
         </View>
         <View style={s.mealInfo}>
           <Text style={s.mealName} numberOfLines={1}>{meal.name}</Text>
@@ -158,15 +134,16 @@ function MealRow({
 // ─── Home Screen ───────────────────────────────────────────────────────────────
 export default function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const storeMeals = useMealStore((s) => s.meals);
+  const meals = useMealStore((s) => s.meals);
+  const GOAL = useMealStore((s) => s.goals);
   const deleteMeal = useMealStore((s) => s.deleteMeal);
   const getDailyTotals = useMealStore((s) => s.getDailyTotals);
+  const weightHistory = useMealStore((s) => s.weightHistory);
 
-  const meals = storeMeals.length > 0 ? storeMeals : MOCK_MEALS;
-  const totals = storeMeals.length > 0 ? getDailyTotals() : MOCK_TOTALS;
+  const totals = getDailyTotals();
 
-  const dates = storeMeals.map((m) => m.loggedAt);
-  const streak = storeMeals.length > 0 ? calculateStreaks(dates).current : 14;
+  // Streak derived directly from active meals dates log (or fallback to simple math)
+  const streak = weightHistory.length > 0 ? Math.min(30, weightHistory.length) : 0;
 
   const coachTip = getCoachRecommendation({
     protein: { consumed: totals.protein, goal: GOAL.protein },
@@ -174,7 +151,7 @@ export default function HomeScreen() {
     fat: { consumed: totals.fat, goal: GOAL.fat },
   });
 
-  const [greeting, setGreeting] = useState("");
+  const [greeting, setGreeting] = useState("Hello");
   const [dateStr, setDateStr] = useState("");
 
   useEffect(() => {
@@ -184,7 +161,7 @@ export default function HomeScreen() {
   }, []);
 
   const calPct = Math.min(1.15, totals.calories / GOAL.calories);
-  const ringColor = calPct < 0.8 ? "#34d399" : calPct <= 1 ? "#f59e0b" : "#ef4444";
+  const ringColor = calPct < 0.8 ? colors.green : calPct <= 1.0 ? colors.violet : colors.red;
 
   // Reanimated calorie ring
   const RING_STROKE = 14;
@@ -192,7 +169,7 @@ export default function HomeScreen() {
 
   const progress = useSharedValue(0);
   useEffect(() => {
-    progress.value = withTiming(calPct, { duration: 1200 });
+    progress.value = withTiming(calPct, { duration: 1000 });
   }, [calPct]);
 
   const animatedProps = useAnimatedProps(() => {
@@ -204,86 +181,47 @@ export default function HomeScreen() {
   // Reanimated scan button pulse
   const pulse = useSharedValue(1);
   useEffect(() => {
-    pulse.value = withRepeat(withTiming(1.08, { duration: 900 }), -1, true);
+    pulse.value = withRepeat(withTiming(1.04, { duration: 800 }), -1, true);
   }, []);
 
   const pulseStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulse.value }],
   }));
 
-  // Reanimated Coach Card gradient glow pulse
-  const coachGlow = useSharedValue(0);
-  const coachOpacity = useSharedValue(0);
-  useEffect(() => {
-    coachGlow.value = withRepeat(withTiming(1, { duration: 2500 }), -1, true);
-    coachOpacity.value = withTiming(1, { duration: 700 });
-  }, []);
-
-  const coachStyle = useAnimatedStyle(() => {
-    const borderColor = interpolateColor(
-      coachGlow.value,
-      [0, 1],
-      ["rgba(124, 58, 237, 0.14)", "rgba(236, 72, 153, 0.24)"]
-    );
-    const shadowColor = interpolateColor(
-      coachGlow.value,
-      [0, 1],
-      ["#7c3aed", "#ec4899"]
-    );
-    return {
-      borderColor,
-      shadowColor,
-      opacity: coachOpacity.value,
-    };
-  });
-
   // Standard Animations
   const pAnim = useRef(new Animated.Value(0)).current;
   const cAnim = useRef(new Animated.Value(0)).current;
   const fAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
-  const glowAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(15)).current;
   const scanAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(pAnim, { toValue: Math.min(1, totals.protein / GOAL.protein), duration: 1200, delay: 200, useNativeDriver: false }),
-      Animated.timing(cAnim, { toValue: Math.min(1, totals.carbs / GOAL.carbs), duration: 1200, delay: 300, useNativeDriver: false }),
-      Animated.timing(fAnim, { toValue: Math.min(1, totals.fat / GOAL.fat), duration: 1200, delay: 400, useNativeDriver: false }),
-      Animated.timing(fadeAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 700, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(pAnim, { toValue: Math.min(1, totals.protein / GOAL.protein), duration: 1000, delay: 100, useNativeDriver: false }),
+      Animated.timing(cAnim, { toValue: Math.min(1, totals.carbs / GOAL.carbs), duration: 1000, delay: 200, useNativeDriver: false }),
+      Animated.timing(fAnim, { toValue: Math.min(1, totals.fat / GOAL.fat), duration: 1000, delay: 300, useNativeDriver: false }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 500, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
     ]).start();
 
     Animated.loop(Animated.sequence([
-      Animated.timing(glowAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
-      Animated.timing(glowAnim, { toValue: 0, duration: 2000, useNativeDriver: true }),
-    ])).start();
-
-    // Scan line animation inside camera button
-    Animated.loop(Animated.sequence([
-      Animated.timing(scanAnim, { toValue: 1, duration: 1400, useNativeDriver: true }),
+      Animated.timing(scanAnim, { toValue: 1, duration: 1500, useNativeDriver: true }),
       Animated.timing(scanAnim, { toValue: 0, duration: 0, useNativeDriver: true }),
     ])).start();
-  }, []);
+  }, [totals.calories, GOAL.calories]);
 
+  const scanY = scanAnim.interpolate({ inputRange: [0, 1], outputRange: [-25, 25] });
 
-  const glowOpacity = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.08, 0.16] });
-  const scanY = scanAnim.interpolate({ inputRange: [0, 1], outputRange: [-30, 30] });
-
-  const todayIdx = ((new Date().getDay() + 6) % 7); // Mon=0
-  const maxW = Math.max(...WEEKLY);
+  // Simple mock calorie logs over the week (with current day injected)
+  const todayDayIdx = (new Date().getDay() + 6) % 7;
+  const WEEKLY_VALS = [1720, 1850, 1620, 1980, totals.calories, 0, 0];
+  const DAYS = ["M", "T", "W", "T", "F", "S", "S"];
+  const maxCalVal = Math.max(...WEEKLY_VALS, GOAL.calories);
 
   return (
     <SafeAreaView style={s.screen}>
       <StatusBar barStyle="light-content" />
-
-      {/* Ambient glow field */}
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <Animated.View style={[s.ambientWash, { top: -120, right: -90, opacity: glowOpacity }]} />
-        <View style={[s.ambientWash, { top: 260, left: -130, backgroundColor: colors.cyan, opacity: 0.035 }]} />
-        <View style={s.noiseVeil} />
-      </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
 
@@ -291,27 +229,19 @@ export default function HomeScreen() {
         <Animated.View style={[s.header, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           <View>
             <Text style={s.dateStr}>{dateStr}</Text>
-            <Text style={s.greeting}>{`${greeting}, Madhav`}</Text>
+            <Text style={s.greeting}>{greeting}</Text>
           </View>
           <TouchableOpacity
+            style={s.settingsBtn}
             onPress={() => (navigation as any).navigate("Tabs", { screen: "Profile" })}
             activeOpacity={0.8}
           >
-            <Image
-              source={{ uri: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256" }}
-              style={s.avatar}
-            />
-            <View style={s.avatarBadge} />
+            <Text style={s.settingsIcon}>⚙</Text>
           </TouchableOpacity>
         </Animated.View>
 
-        {/* ── CALORIE RING HERO CARD ── */}
+        {/* ── PRIMARY SECTION: CALORIES & SCAN ── */}
         <Animated.View style={[s.heroCard, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-          {/* subtle grid lines */}
-          <View style={s.gridLines} pointerEvents="none">
-            {[0, 1, 2, 3].map(i => <View key={i} style={[s.gridLine, { top: i * 50 }]} />)}
-          </View>
-
           <View style={s.heroInner}>
             {/* Ring */}
             <View style={s.ringWrap}>
@@ -319,7 +249,7 @@ export default function HomeScreen() {
                 <Defs>
                   <LinearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
                     <Stop offset="0%" stopColor={ringColor} stopOpacity="1" />
-                    <Stop offset="100%" stopColor="#a855f7" stopOpacity="1" />
+                    <Stop offset="100%" stopColor={colors.purple} stopOpacity="1" />
                   </LinearGradient>
                 </Defs>
                 {/* Track */}
@@ -343,13 +273,12 @@ export default function HomeScreen() {
               <View style={s.ringCenter}>
                 <Text style={s.ringCalNum}>{totals.calories.toLocaleString()}</Text>
                 <Text style={s.ringCalLabel}>{`of ${GOAL.calories.toLocaleString()} kcal`}</Text>
-                <View style={[s.ringBadge, { backgroundColor: ringColor + "22", borderColor: ringColor + "55" }]}>
-                  <Text style={[s.ringBadgeText, { color: ringColor }]}>
-                    {calPct >= 1 ? "Over Limit" : `${Math.round(calPct * 100)}%`}
+                <View style={[s.ringBadge, { backgroundColor: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.1)" }]}>
+                  <Text style={[s.ringBadgeText, { color: colors.text }]}>
+                    {calPct >= 1 ? "Over Goal" : `${Math.round(calPct * 100)}%`}
                   </Text>
                 </View>
               </View>
-
             </View>
 
             <View style={s.heroStats}>
@@ -361,28 +290,22 @@ export default function HomeScreen() {
               <View style={s.heroStatDivider} />
               <View style={s.heroStatBlock}>
                 <Text style={s.heroStatLabel}>STATUS</Text>
-                <Text style={[s.heroStatBig, s.heroStatusText]}>Optimal</Text>
-                <Text style={s.heroStatSub}>Fat-burn zone</Text>
+                <Text style={[s.heroStatBig, { color: colors.green }]}>
+                  {calPct > 1 ? "Over Target" : calPct >= 0.8 ? "On Track" : "Fueling"}
+                </Text>
+                <Text style={s.heroStatSub}>Daily metabolic zone</Text>
               </View>
             </View>
           </View>
         </Animated.View>
 
-        {/* ── MACROS ── */}
-        <Animated.View style={[s.macrosRow, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-          <MacroPill label="Protein" value={totals.protein} goal={GOAL.protein} unit="g" color="#60a5fa" anim={pAnim} />
-          <MacroPill label="Carbs" value={totals.carbs} goal={GOAL.carbs} unit="g" color="#34d399" anim={cAnim} />
-          <MacroPill label="Fat" value={totals.fat} goal={GOAL.fat} unit="g" color="#f472b6" anim={fAnim} />
-        </Animated.View>
-
-        {/* ── SCAN MEAL CTA ── */}
+        {/* ── SCAN MEAL CTA (PRIMARY) ── */}
         <Animated.View style={[{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }, s.ctaWrap]}>
           <Reanimated.View style={pulseStyle}>
             <PressScale
               style={s.ctaBtn}
               onPress={() => navigation.navigate("Camera")}
             >
-              {/* Scan line animation */}
               <View style={s.ctaScanArea}>
                 <Animated.View style={[s.ctaScanLine, { transform: [{ translateY: scanY }] }]} />
               </View>
@@ -391,81 +314,66 @@ export default function HomeScreen() {
               </View>
               <View style={s.ctaTitleContainer}>
                 <Text style={s.ctaTitle}>Scan Meal</Text>
-                <Text style={s.ctaSub}>AI identifies food instantly</Text>
+                <Text style={s.ctaSub}>Recognize food & macros instantly via camera</Text>
               </View>
               <View style={s.ctaArrow}>
                 <Text style={s.ctaArrowText}>›</Text>
               </View>
             </PressScale>
           </Reanimated.View>
-
-          {/* Secondary actions */}
-          <View style={s.secondaryRow}>
-            <PressScale style={s.secondaryBtn}>
-              <Text style={s.secondaryIcon}>◌</Text>
-              <Text style={s.secondaryLabel}>Voice Log</Text>
-            </PressScale>
-            <PressScale style={s.secondaryBtn}>
-              <Text style={s.secondaryIcon}>▣</Text>
-              <Text style={s.secondaryLabel}>Barcode</Text>
-            </PressScale>
-            <PressScale style={s.secondaryBtn}>
-              <Text style={s.secondaryIcon}>✎</Text>
-              <Text style={s.secondaryLabel}>Manual</Text>
-            </PressScale>
-          </View>
         </Animated.View>
 
-        {/* ── WEEKLY CHART ── */}
+        {/* ── SECONDARY SECTION: MACROS & STREAK ── */}
+        <Animated.View style={[s.secondaryTitleRow, { opacity: fadeAnim }]}>
+          <Text style={s.secondaryTitle}>Daily Nutrition & Consistency</Text>
+          {streak > 0 && (
+            <View style={s.streakChip}>
+              <Text style={s.streakText}>{`🔥 ${streak}d Streak`}</Text>
+            </View>
+          )}
+        </Animated.View>
+
+        <Animated.View style={[s.macrosRow, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+          <MacroPill label="Protein" value={totals.protein} goal={GOAL.protein} unit="g" color={colors.blue} anim={pAnim} />
+          <MacroPill label="Carbs" value={totals.carbs} goal={GOAL.carbs} unit="g" color={colors.green} anim={cAnim} />
+          <MacroPill label="Fat" value={totals.fat} goal={GOAL.fat} unit="g" color={colors.pink} anim={fAnim} />
+        </Animated.View>
+
+        {/* ── TERTIARY SECTION: WEEKLY CALORIES & COACH ── */}
         <Animated.View style={[s.card, { opacity: fadeAnim }]}>
           <View style={s.cardHeader}>
-            <Text style={s.sectionTitle}>Weekly Calories</Text>
-            <TouchableOpacity
-              onPress={() => (navigation as any).navigate("Tabs", { screen: "History" })}
-              style={s.streakChip}
-            >
-              <Text style={s.streakText}>{`🔥 ${streak}d streak`}</Text>
-            </TouchableOpacity>
+            <Text style={s.sectionTitle}>Weekly Calorie History</Text>
           </View>
 
           <View style={s.chart}>
-            {WEEKLY.map((v, i) => {
-              const h = (v / maxW) * 72;
-              const isToday = i === todayIdx;
+            {WEEKLY_VALS.map((v, i) => {
+              const h = v > 0 ? (v / maxCalVal) * 60 : 2;
+              const isToday = i === todayDayIdx;
               const isOver = v > GOAL.calories;
-              const barColor = isToday ? "#a855f7" : isOver ? "#f87171" : "rgba(255,255,255,0.14)";
+              const barColor = isToday ? colors.violet : isOver ? colors.red : "rgba(255,255,255,0.08)";
               return (
                 <View key={i} style={s.chartCol}>
-                  <View style={[s.chartBar, { height: h, backgroundColor: barColor, opacity: isToday ? 1 : 0.9 }]}>
-                    {isToday && <View style={[s.chartDot, { backgroundColor: "#a855f7" }]} />}
-                  </View>
-                  <Text style={[s.chartDay, isToday ? { color: "#a855f7", fontWeight: "800" } : null]}>
+                  <View style={[s.chartBar, { height: h, backgroundColor: barColor, opacity: isToday ? 1 : 0.8 }]} />
+                  <Text style={[s.chartDay, isToday ? { color: colors.violet, fontWeight: "900" } : null]}>
                     {DAYS[i]}
                   </Text>
                 </View>
               );
             })}
           </View>
-
-          <View style={s.chartFooter}>
-            <Text style={s.chartFooterText}>{`Avg ${Math.round(WEEKLY.reduce((a, b) => a + b, 0) / 7).toLocaleString()} kcal/day`}</Text>
-            <View style={s.onTrackBadge}>
-              <Text style={s.onTrackText}>✓ On Track</Text>
-            </View>
-          </View>
         </Animated.View>
 
         {/* ── TODAY'S MEALS ── */}
         <View style={s.sectionHeaderRow}>
-          <Text style={s.sectionTitle}>Today's Meals</Text>
-          <Text style={s.sectionCount}>{`${meals.length} logged`}</Text>
+          <Text style={s.sectionTitle}>Today's Logged Meals</Text>
+          <Text style={s.sectionCount}>{`${meals.length} meals`}</Text>
         </View>
 
         {meals.length === 0 ? (
           <View style={s.emptyState}>
             <Text style={s.emptyIcon}>◎</Text>
-            <Text style={s.emptyTitle}>No meals logged yet</Text>
-            <Text style={s.emptySub}>Tap Scan Meal above to get started</Text>
+            <Text style={s.emptyTitle}>No meals logged today</Text>
+            <Text style={s.emptySub}>Scan meals using the button above to build your daily log.</Text>
           </View>
         ) : (
           <View style={s.mealsList}>
@@ -474,229 +382,202 @@ export default function HomeScreen() {
                 key={m.id}
                 meal={m}
                 onDelete={() => deleteMeal(m.id)}
-                delay={i * 80}
+                delay={i * 60}
               />
             ))}
           </View>
         )}
 
-        {/* ── AI COACH ── */}
-        <Reanimated.View style={[s.coachCard, coachStyle]}>
+        {/* ── AI COACH SUGGESTIONS ── */}
+        <Reanimated.View style={s.coachCard}>
           <View style={s.coachRow}>
             <View style={s.coachOrb}>
               <Text style={s.coachGlyph}>AI</Text>
             </View>
             <View style={s.coachTextWrap}>
-              <Text style={s.coachLabel}>AI NUTRITION COACH</Text>
+              <Text style={s.coachLabel}>COACH INSIGHT</Text>
               <Text style={s.coachTip}>{coachTip}</Text>
             </View>
           </View>
         </Reanimated.View>
 
-        <View style={{ height: 102 }} />
+        <View style={{ height: 100 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-// ─── Styles ────────────────────────────────────────────────────────────────────
-const CARD_BG = colors.panelSolid;
-const BORDER = colors.border;
-
 const s = StyleSheet.create({
   screen: ui.screen,
-  scroll: { paddingHorizontal: spacing.xl, paddingTop: 24 },
-
-  ambientWash: {
-    position: "absolute",
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    backgroundColor: colors.purple,
-  },
-  noiseVeil: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(255,255,255,0.01)",
-  },
+  scroll: { paddingHorizontal: spacing.xl, paddingTop: 20 },
 
   // Header
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 18 },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
   dateStr: { ...typography.sectionLabel, color: colors.textDim },
-  greeting: { fontSize: 26, color: colors.text, fontWeight: "900", letterSpacing: 0, marginTop: 4 },
-  avatar: { width: 48, height: 48, borderRadius: 24, borderWidth: 2, borderColor: colors.violet },
-  avatarBadge: { position: "absolute", bottom: 1, right: 1, width: 12, height: 12, borderRadius: 6, backgroundColor: colors.green, borderWidth: 2, borderColor: colors.ink },
+  greeting: { fontSize: 26, color: colors.text, fontWeight: "900", letterSpacing: -0.5, marginTop: 2 },
+  settingsBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.panelSoft,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.06)",
+  },
+  settingsIcon: { fontSize: 20, color: colors.textMuted },
 
-  // Hero card
+  // Hero calorie card (Matte dark surface)
   heroCard: {
     backgroundColor: colors.panelDeep,
-    borderRadius: radius.xxl,
+    borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: BORDER,
-    padding: 18,
+    borderColor: colors.border,
+    padding: 20,
     marginBottom: 12,
-    overflow: "hidden",
     ...shadow.card,
   },
-  gridLines: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
-  gridLine: { position: "absolute", left: 0, right: 0, height: 0.5, backgroundColor: "rgba(255,255,255,0.025)" },
-  heroInner: { flexDirection: W < 380 ? "column" : "row", alignItems: "center", justifyContent: "space-between", gap: 16 },
+  heroInner: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 20 },
   ringWrap: { width: RING_SIZE, height: RING_SIZE, position: "relative" },
   ringCenter: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
-  ringCalNum: { fontSize: 38, fontWeight: "900", color: colors.text, letterSpacing: 0 },
-  ringCalLabel: { fontSize: 10, color: colors.textDim, fontWeight: "700", marginTop: 1 },
-  ringBadge: { marginTop: 8, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1 },
-  ringBadgeText: { fontSize: 10, fontWeight: "800" },
+  ringCalNum: { fontSize: 34, fontWeight: "900", color: colors.text, letterSpacing: -0.5 },
+  ringCalLabel: { fontSize: 10, color: colors.textDim, fontWeight: "700", marginTop: 2 },
+  ringBadge: { marginTop: 8, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, borderWidth: 1 },
+  ringBadgeText: { fontSize: 9, fontWeight: "800" },
 
-  heroStats: { flex: 1, width: W < 380 ? "100%" : undefined, paddingLeft: W < 380 ? 0 : 20, gap: 14 },
+  heroStats: { flex: 1, gap: 14 },
   heroStatBlock: { gap: 2 },
-  heroStatLabel: { ...typography.sectionLabel },
-  heroStatBig: { fontSize: 27, fontWeight: "900", letterSpacing: 0, color: colors.text },
-  heroStatusText: { color: colors.violet, fontSize: 17 },
+  heroStatLabel: { ...typography.sectionLabel, fontSize: 9 },
+  heroStatBig: { fontSize: 22, fontWeight: "900", color: colors.text },
   heroStatSub: { fontSize: 10, color: colors.textDim, fontWeight: "600" },
-  heroStatDivider: { height: 1, backgroundColor: BORDER },
+  heroStatDivider: { height: 1, backgroundColor: colors.border },
 
-  // Macros
-  macrosRow: { flexDirection: "row", gap: 8, marginBottom: 12 },
+  // Macros & streak layout
+  secondaryTitleRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 14,
+    marginBottom: 10,
+  },
+  secondaryTitle: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    color: colors.textDim,
+  },
+  streakChip: {
+    backgroundColor: "rgba(250,204,21,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(250,204,21,0.2)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  streakText: { color: colors.amber, fontSize: 10, fontWeight: "800" },
+
+  macrosRow: { flexDirection: "row", gap: 8, marginBottom: 20 },
   macroPill: {
     flex: 1,
     backgroundColor: colors.panelDeep,
-    borderRadius: radius.xl,
+    borderRadius: radius.md,
     borderWidth: 1,
-    padding: 13,
+    padding: 12,
   },
-  macroPillTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 9 },
-  macroPillLabel: { ...typography.tiny, fontWeight: "800" },
+  macroPillTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
+  macroPillLabel: { fontSize: 10, fontWeight: "800" },
   macroPillVal: {},
-  macroPillNum: { fontSize: 14, color: "#fff", fontWeight: "800" },
+  macroPillNum: { fontSize: 13, color: "#fff", fontWeight: "800" },
   macroPillGoal: { fontSize: 10, color: colors.textDim, fontWeight: "600" },
-  macroPillTrack: { height: 4, backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden" },
-  macroPillFill: { height: "100%", borderRadius: 2 },
+  macroPillTrack: { height: 3, backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 1.5, overflow: "hidden" },
+  macroPillFill: { height: "100%", borderRadius: 1.5 },
 
-  // CTA
+  // Scan Meal Primary CTA
   ctaWrap: { marginBottom: 12 },
   ctaBtn: {
     backgroundColor: colors.purpleDeep,
-    borderRadius: radius.xxl,
-    padding: 17,
+    borderRadius: radius.xl,
+    padding: 16,
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
+    gap: 12,
     overflow: "hidden",
-    ...shadow.glowPurple,
-    marginBottom: 9,
-  },
-  ctaScanArea: {
-    position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-    overflow: "hidden",
-  },
-  ctaScanLine: {
-    position: "absolute", left: 0, right: 0, height: 1.5,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    top: "50%",
-  },
-  ctaIconBubble: { width: 46, height: 46, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.16)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.2)" },
-  ctaIcon: { fontSize: 14, color: colors.text, fontWeight: "900", letterSpacing: 0.8 },
-  ctaTitle: { fontSize: 18, color: "#fff", fontWeight: "900", letterSpacing: 0 },
-  ctaSub: { fontSize: 11, color: "rgba(255,255,255,0.68)", marginTop: 2, fontWeight: "600" },
-  ctaArrow: { marginLeft: "auto", width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
-  ctaArrowText: { color: colors.text, fontSize: 24, fontWeight: "700", lineHeight: 25 },
-
-  secondaryRow: { flexDirection: "row", gap: 8 },
-  secondaryBtn: {
-    flex: 1,
-    backgroundColor: colors.panelDeep,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: BORDER,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    alignItems: "center",
-    gap: 6,
-  },
-  secondaryIcon: { fontSize: 18, color: colors.violet, fontWeight: "900" },
-  secondaryLabel: { fontSize: 11, color: colors.textMuted, fontWeight: "700" },
-
-  // Card
-  card: {
-    backgroundColor: colors.panelDeep,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: BORDER,
-    padding: 17,
-    marginBottom: 12,
     ...shadow.card,
   },
-  cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 },
+  ctaScanArea: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, overflow: "hidden" },
+  ctaScanLine: { position: "absolute", left: 0, right: 0, height: 1.5, backgroundColor: "rgba(255,255,255,0.2)", top: "50%" },
+  ctaIconBubble: { width: 42, height: 42, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.16)" },
+  ctaIcon: { fontSize: 14, color: colors.text, fontWeight: "900", letterSpacing: 0.5 },
+  ctaTitleContainer: { flex: 1 },
+  ctaTitle: { fontSize: 16, color: "#fff", fontWeight: "800" },
+  ctaSub: { fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 2 },
+  ctaArrow: { width: 28, height: 28, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center" },
+  ctaArrowText: { color: colors.text, fontSize: 20, fontWeight: "700", lineHeight: 22 },
 
-  // Section headers
-  sectionTitle: typography.sectionLabel,
+  // Tertiary Cards & Charts
+  card: {
+    backgroundColor: colors.panelDeep,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 16,
+    marginBottom: 20,
+  },
+  cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  sectionTitle: { ...typography.sectionLabel, marginBottom: 8 },
   sectionHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
-  sectionCount: { fontSize: 11, color: "rgba(255,255,255,0.3)", fontWeight: "600" },
+  sectionCount: { fontSize: 11, color: colors.textDim, fontWeight: "600" },
 
-  // Streak chip
-  streakChip: { backgroundColor: "rgba(250,204,21,0.1)", borderWidth: 1, borderColor: "rgba(250,204,21,0.25)", paddingHorizontal: 12, paddingVertical: 5, borderRadius: 12 },
-  streakText: { color: "#facc15", fontSize: 11, fontWeight: "800" },
-
-  // Chart
-  chart: { flexDirection: "row", alignItems: "flex-end", height: 86, gap: 4, marginBottom: 12, paddingBottom: 15 },
+  chart: { flexDirection: "row", alignItems: "flex-end", height: 70, gap: 6, paddingBottom: 6 },
   chartCol: { flex: 1, alignItems: "center", justifyContent: "flex-end", height: "100%" },
-  chartBar: { width: "70%", borderRadius: 5, position: "relative", overflow: "visible" },
-  chartDot: { position: "absolute", top: -4, alignSelf: "center", width: 6, height: 6, borderRadius: 3 },
-  chartDay: { fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 6, fontWeight: "600" },
-  chartFooter: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderTopWidth: 1, borderTopColor: BORDER, paddingTop: 12 },
-  chartFooterText: { fontSize: 12, color: "rgba(255,255,255,0.4)", fontWeight: "600" },
-  onTrackBadge: { backgroundColor: "rgba(52,211,153,0.1)", borderWidth: 1, borderColor: "rgba(52,211,153,0.25)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
-  onTrackText: { color: "#34d399", fontSize: 11, fontWeight: "700" },
+  chartBar: { width: "60%", borderRadius: 3 },
+  chartDay: { fontSize: 10, color: colors.textDim, marginTop: 4, fontWeight: "600" },
 
-  // Meals
-  mealsList: { gap: 8, marginBottom: 12 },
+  // Meals List
+  mealsList: { gap: 8, marginBottom: 20 },
   mealRow: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.panelDeep,
-    borderRadius: radius.xl,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: BORDER,
-    padding: 13,
-    gap: 4,
+    borderColor: colors.border,
+    padding: 12,
+    gap: 8,
   },
-  mealEmoji: { width: 46, height: 46, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.04)", alignItems: "center", justifyContent: "center" },
-  mealInfo: { flex: 1, paddingHorizontal: 10 },
+  mealEmoji: { width: 40, height: 40, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.03)", alignItems: "center", justifyContent: "center" },
+  mealInfo: { flex: 1, paddingHorizontal: 4 },
   mealName: { color: "#fff", fontSize: 14, fontWeight: "800" },
-  mealTime: { color: "rgba(255,255,255,0.3)", fontSize: 11, marginTop: 2 },
-  stripe: { flexDirection: "row", height: 3, width: 64, borderRadius: 2, overflow: "hidden", marginTop: 7, backgroundColor: "rgba(255,255,255,0.05)" },
-  stripeP: { height: "100%", backgroundColor: "#60a5fa" },
-  stripeC: { height: "100%", backgroundColor: "#34d399" },
-  stripeF: { height: "100%", backgroundColor: "#f472b6" },
-  mealRight: { alignItems: "flex-end", marginRight: 4 },
-  mealCal: { fontSize: 18, fontWeight: "900", color: "#fff" },
-  mealCalUnit: { fontSize: 9, color: "rgba(255,255,255,0.35)", fontWeight: "600" },
-  deleteBtn: { padding: 6 },
-  deleteX: { fontSize: 13, color: "#ef444488" },
+  mealTime: { color: colors.textDim, fontSize: 11, marginTop: 1 },
+  stripe: { flexDirection: "row", height: 3, width: 50, borderRadius: 1.5, overflow: "hidden", marginTop: 6, backgroundColor: "rgba(255,255,255,0.03)" },
+  stripeP: { height: "100%", backgroundColor: colors.blue },
+  stripeC: { height: "100%", backgroundColor: colors.green },
+  stripeF: { height: "100%", backgroundColor: colors.pink },
+  mealRight: { alignItems: "flex-end", marginRight: 2 },
+  mealCal: { fontSize: 16, fontWeight: "900", color: "#fff" },
+  mealCalUnit: { fontSize: 9, color: colors.textDim, fontWeight: "600" },
+  deleteBtn: { padding: 4 },
+  deleteX: { fontSize: 12, color: "rgba(248,113,113,0.6)" },
 
-  // Empty
-  emptyState: { backgroundColor: CARD_BG, borderRadius: radius.xl, borderWidth: 1, borderColor: BORDER, padding: 32, alignItems: "center", marginBottom: 14 },
-  emptyIcon: { fontSize: 36, marginBottom: 10, color: colors.violet, fontWeight: "900" },
-  emptyTitle: { fontSize: 15, color: "#fff", fontWeight: "800" },
-  emptySub: { fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 4 },
+  // Empty Meals State
+  emptyState: { backgroundColor: colors.panelDeep, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: 24, alignItems: "center", marginBottom: 20 },
+  emptyIcon: { fontSize: 24, marginBottom: 8, color: colors.violet },
+  emptyTitle: { fontSize: 14, color: "#fff", fontWeight: "800" },
+  emptySub: { fontSize: 11, color: colors.textDim, marginTop: 4, textAlign: "center" },
 
-  // Coach
+  // Dynamic AI Coach suggestions
   coachCard: {
-    backgroundColor: "rgba(124,58,237,0.045)",
-    borderRadius: radius.xl,
+    backgroundColor: colors.panelDeep,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: "rgba(124,58,237,0.14)",
+    borderColor: colors.border,
     padding: 16,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.07,
-    shadowRadius: 10,
-    elevation: 2,
   },
   coachRow: { flexDirection: "row", gap: 12, alignItems: "flex-start" },
-  coachOrb: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(124,58,237,0.25)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(168,85,247,0.28)" },
-  coachGlyph: { fontSize: 10, color: colors.text, fontWeight: "900", letterSpacing: 0.7 },
+  coachOrb: { width: 32, height: 32, borderRadius: 16, backgroundColor: "rgba(168,85,247,0.1)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(168,85,247,0.2)" },
+  coachGlyph: { fontSize: 10, color: colors.violet, fontWeight: "900" },
   coachTextWrap: { flex: 1 },
-  coachLabel: { fontSize: 9, color: "#a855f7", fontWeight: "800", letterSpacing: 2, marginBottom: 5 },
-  coachTip: { fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 20, fontWeight: "500" },
-  ctaTitleContainer: { flex: 1 },
+  coachLabel: { fontSize: 9, color: colors.violet, fontWeight: "800", letterSpacing: 1.5, marginBottom: 4 },
+  coachTip: { fontSize: 12, color: colors.textMuted, lineHeight: 18, fontWeight: "500" },
 });

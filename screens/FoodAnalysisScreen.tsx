@@ -1,7 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  View, Text, Image, TouchableOpacity, StyleSheet,
-  ScrollView, Dimensions, Animated, StatusBar, Alert,
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Dimensions,
+  Animated,
+  StatusBar,
+  Alert,
   Easing,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -40,7 +48,7 @@ function AnimCounter({ target, color, label }: { target: number; color: string; 
   const [val, setVal] = useState(0);
   useEffect(() => {
     let start = 0;
-    const step = target / 40;
+    const step = target / 40 || 1;
     const t = setInterval(() => {
       start = Math.min(start + step, target);
       setVal(Math.round(start));
@@ -72,7 +80,7 @@ function MacroBar({ label, value, max, color }: { label: string; value: number; 
   return (
     <View style={{ marginBottom: 10 }}>
       <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 5 }}>
-        <Text style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, fontWeight: "700", letterSpacing: 0.5 }}>{label}</Text>
+        <Text style={{ color: colors.textMuted, fontSize: 11, fontWeight: "700", letterSpacing: 0.5 }}>{label}</Text>
         <Text style={{ color, fontSize: 11, fontWeight: "900" }}>{value}g</Text>
       </View>
       <View style={{ height: 5, backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 3, overflow: "hidden" }}>
@@ -90,6 +98,13 @@ export default function FoodAnalysisScreen() {
   const insets = useSafeAreaInsets();
   const { state, analyze, hydrate } = useAnalyzeFood();
   const addMeal = useMealStore((s) => s.addMeal);
+
+  // Correction UX configuration states
+  const [servingSize, setServingSize] = useState<number>(1.0);
+  const [category, setCategory] = useState<string>("Lunch"); // Breakfast | Lunch | Dinner | Snack
+  const [isLogged, setIsLogged] = useState(false);
+
+  const toastAnim = useRef(new Animated.Value(0)).current;
 
   const isLoading = state.status === "uploading" || state.status === "analyzing";
   const isSuccess = state.status === "success" && !!state.data;
@@ -146,8 +161,46 @@ export default function FoodAnalysisScreen() {
     }
   }, [state.status]);
 
+  const showToastNotification = () => {
+    Animated.sequence([
+      Animated.timing(toastAnim, { toValue: 1, duration: 300, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.delay(1200),
+      Animated.timing(toastAnim, { toValue: 0, duration: 250, easing: Easing.in(Easing.quad), useNativeDriver: true })
+    ]).start(() => {
+      navigation.navigate("Tabs");
+    });
+  };
+
+  const handleLogMeal = (d: any) => {
+    setIsLogged(true);
+    const foodsList = Array.isArray(d.foods) ? d.foods : [];
+    
+    // Scale macros and calories by serving size modifier
+    const name = foodsList.map((f: FoodItem) => f.name).join(", ") || "AI Scanned Meal";
+    const calories = Math.round((Number(d.totalCalories) || 0) * servingSize);
+    const protein = Math.round((Number(d.totalProtein) || 0) * servingSize);
+    const carbs = Math.round((Number(d.totalCarbs) || 0) * servingSize);
+    const fat = Math.round((Number(d.totalFat) || 0) * servingSize);
+
+    addMeal({
+      name,
+      calories,
+      protein,
+      carbs,
+      fat,
+      category,
+    });
+
+    showToastNotification();
+  };
+
   const scanY = scanLineAnim.interpolate({ inputRange: [0, 1], outputRange: [-120, 120] });
   const macroColor = (t: string) => ({ protein: colors.green, carbs: colors.blue, fat: colors.pink }[t] ?? colors.text);
+
+  const toastTranslateY = toastAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [100, 0]
+  });
 
   return (
     <View style={s.root}>
@@ -161,7 +214,6 @@ export default function FoodAnalysisScreen() {
               <Text style={{ color: "rgba(255,255,255,0.2)", fontSize: 40 }}>🍽️</Text>
             </View>
         }
-        {/* Gradient overlay */}
         <View style={s.imgOverlay} />
 
         {/* Scan line animation */}
@@ -173,8 +225,8 @@ export default function FoodAnalysisScreen() {
             <View style={s.scanCornerBL} />
             <View style={s.scanCornerBR} />
             <Animated.View style={[s.scanPulse, { transform: [{ scale: pulseAnim }] }]}>
-            <Text style={s.scanLabel}>AI SCANNING</Text>
-            <Text style={s.scanSubLabel}>building macro estimate</Text>
+              <Text style={s.scanLabel}>AI SCANNING</Text>
+              <Text style={s.scanSubLabel}>building macro estimate</Text>
             </Animated.View>
           </View>
         )}
@@ -183,7 +235,7 @@ export default function FoodAnalysisScreen() {
         {isSuccess && (
           <Animated.View style={[s.successBadge, { transform: [{ scale: successScaleAnim }] }]}>
             <Text style={s.successIcon}>✓</Text>
-            <Text style={s.successText}>Detected</Text>
+            <Text style={s.successText}>Analysis Complete</Text>
           </Animated.View>
         )}
 
@@ -194,7 +246,7 @@ export default function FoodAnalysisScreen() {
       </View>
 
       {/* ── Bottom sheet ── */}
-      <ScrollView style={s.sheet} contentContainerStyle={[s.sheetContent, { paddingBottom: insets.bottom + 40 }]} showsVerticalScrollIndicator={false}>
+      <ScrollView style={s.sheet} contentContainerStyle={[s.sheetContent, { paddingBottom: insets.bottom + 120 }]} showsVerticalScrollIndicator={false}>
 
         {/* Loading skeletons */}
         {isLoading && (
@@ -215,7 +267,7 @@ export default function FoodAnalysisScreen() {
         {state.status === "error" && (
           <View style={s.errorBox}>
             <Text style={{ fontSize: 44, marginBottom: 14 }}>⚠️</Text>
-            <Text style={s.errorTitle}>Could not analyse</Text>
+            <Text style={s.errorTitle}>Could not analyze</Text>
             <Text style={s.errorMsg}>{state.error}</Text>
             <TouchableOpacity style={s.retryBtn} onPress={() => runAnalysis(imageUri)} activeOpacity={0.8}>
               <Text style={s.retryText}>Try Again</Text>
@@ -226,15 +278,23 @@ export default function FoodAnalysisScreen() {
         {/* Success results */}
         {isSuccess && state.data && (() => {
           const d = state.data;
-          const maxMacro = Math.max(d.totalProtein, d.totalCarbs, d.totalFat, 1);
+          
+          // Calculate dynamically based on serving size
+          const currentCalories = Math.round(d.totalCalories * servingSize);
+          const currentProtein = Math.round(d.totalProtein * servingSize);
+          const currentCarbs = Math.round(d.totalCarbs * servingSize);
+          const currentFat = Math.round(d.totalFat * servingSize);
+
+          const maxMacro = Math.max(currentProtein, currentCarbs, currentFat, 1);
           const confidence = Math.min(98, Math.max(72, 86 + (Array.isArray(d.foods) ? d.foods.length * 3 : 0)));
+
           return (
             <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
 
               <View style={s.resultHeader}>
                 <View>
-                  <Text style={s.resultEyebrow}>AI ANALYSIS COMPLETE</Text>
-                  <Text style={s.resultTitle}>Nutrition estimate</Text>
+                  <Text style={s.resultEyebrow}>AI MULTIPHASE CLASSIFIED</Text>
+                  <Text style={s.resultTitle}>Meal Breakdown</Text>
                 </View>
                 <View style={s.confidenceBadge}>
                   <Text style={s.confidenceNum}>{confidence}%</Text>
@@ -242,28 +302,60 @@ export default function FoodAnalysisScreen() {
                 </View>
               </View>
 
+              {/* Serving Size Selector */}
+              <Text style={s.sectionLabel}>SERVING SIZE</Text>
+              <View style={s.selectorRow}>
+                {[0.5, 1.0, 1.5, 2.0].map((size) => (
+                  <TouchableOpacity
+                    key={size}
+                    style={[s.selectorItem, servingSize === size ? s.selectorItemActive : null]}
+                    onPress={() => setServingSize(size)}
+                  >
+                    <Text style={[s.selectorText, servingSize === size ? s.selectorTextActive : null]}>
+                      {size}x
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Meal Category Selector */}
+              <Text style={s.sectionLabel}>MEAL CATEGORY</Text>
+              <View style={s.selectorRow}>
+                {["Breakfast", "Lunch", "Dinner", "Snack"].map((cat) => (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[s.selectorItem, category === cat ? s.selectorItemActive : null]}
+                    onPress={() => setCategory(cat)}
+                  >
+                    <Text style={[s.selectorText, category === cat ? s.selectorTextActive : null]}>
+                      {cat}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
               {/* Totals row */}
               <View style={s.totalsRow}>
                 <View style={s.calCard}>
-                  <AnimCounter target={d.totalCalories} color="#fff" label="kcal" />
+                  <AnimCounter target={currentCalories} color="#fff" label="kcal" />
                   <Text style={s.calCardSub}>total calories</Text>
                 </View>
                 <View style={s.macrosGroup}>
-                  <AnimCounter target={d.totalProtein} color="#34d399" label="protein" />
-                  <AnimCounter target={d.totalCarbs} color="#60a5fa" label="carbs" />
-                  <AnimCounter target={d.totalFat} color="#f472b6" label="fat" />
+                  <AnimCounter target={currentProtein} color="#34d399" label="protein" />
+                  <AnimCounter target={currentCarbs} color="#60a5fa" label="carbs" />
+                  <AnimCounter target={currentFat} color="#f472b6" label="fat" />
                 </View>
               </View>
 
               {/* Macro bars */}
               <View style={s.macroBarCard}>
-                <MacroBar label="PROTEIN" value={d.totalProtein} max={maxMacro} color="#34d399" />
-                <MacroBar label="CARBS" value={d.totalCarbs} max={maxMacro} color="#60a5fa" />
-                <MacroBar label="FAT" value={d.totalFat} max={maxMacro} color="#f472b6" />
+                <MacroBar label="PROTEIN" value={currentProtein} max={maxMacro} color="#34d399" />
+                <MacroBar label="CARBS" value={currentCarbs} max={maxMacro} color="#60a5fa" />
+                <MacroBar label="FAT" value={currentFat} max={maxMacro} color="#f472b6" />
               </View>
 
               {/* Foods detected */}
-              <Text style={s.sectionLabel}>FOODS DETECTED</Text>
+              <Text style={s.sectionLabel}>FOODS INVOLVED</Text>
               {(!d || !Array.isArray(d.foods) || d.foods.length === 0) ? (
                 <View style={[s.card, { padding: 24, alignItems: "center", justifyContent: "center", minHeight: 100 }]}>
                   <Text style={s.emptyGlyph}>◎</Text>
@@ -271,69 +363,86 @@ export default function FoodAnalysisScreen() {
                 </View>
               ) : (
                 <>
-                  <View style={s.detectedChipRow}>
-                    {d.foods.slice(0, 4).map((item: FoodItem, i: number) => (
-                      <View key={`${item.name}-${i}`} style={s.detectedChip}>
-                        <Text style={s.detectedChipText} numberOfLines={1}>{item.name}</Text>
-                      </View>
-                    ))}
-                  </View>
-                  {d.foods.map((item: FoodItem, i: number) => (
-                    <View key={i} style={s.foodCard}>
-                      <View style={[s.foodAccent, { backgroundColor: macroColor(i % 3 === 0 ? "protein" : i % 3 === 1 ? "carbs" : "fat") }]} />
-                      <View style={s.foodCardInner}>
-                        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-                          <View style={{ flex: 1, marginRight: 12 }}>
-                            <Text style={s.foodName}>{item.name}</Text>
-                            <Text style={s.foodPortion}>{item.portion}</Text>
-                          </View>
-                          <View style={s.foodCalBadge}>
-                            <Text style={s.foodCalNum}>{item.calories}</Text>
-                            <Text style={s.foodCalUnit}>kcal</Text>
-                          </View>
-                        </View>
-                        <View style={s.foodMacroRow}>
-                          {(["protein", "carbs", "fat"] as const).map((m) => (
-                            <View key={m} style={s.foodMacroItem}>
-                              <Text style={[s.foodMacroVal, { color: macroColor(m) }]}>{item[m]}g</Text>
-                              <Text style={s.foodMacroKey}>{m}</Text>
+                  {d.foods.map((item: FoodItem, i: number) => {
+                    const itemCal = Math.round(item.calories * servingSize);
+                    const itemPro = Math.round(item.protein * servingSize);
+                    const itemCar = Math.round(item.carbs * servingSize);
+                    const itemFat = Math.round(item.fat * servingSize);
+
+                    return (
+                      <View key={i} style={s.foodCard}>
+                        <View style={[s.foodAccent, { backgroundColor: macroColor(i % 3 === 0 ? "protein" : i % 3 === 1 ? "carbs" : "fat") }]} />
+                        <View style={s.foodCardInner}>
+                          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                            <View style={{ flex: 1, marginRight: 12 }}>
+                              <Text style={s.foodName}>{item.name}</Text>
+                              <Text style={s.foodPortion}>{item.portion} ({servingSize}x serving)</Text>
                             </View>
-                          ))}
+                            <View style={s.foodCalBadge}>
+                              <Text style={s.foodCalNum}>{itemCal}</Text>
+                              <Text style={s.foodCalUnit}>kcal</Text>
+                            </View>
+                          </View>
+                          <View style={s.foodMacroRow}>
+                            <View style={s.foodMacroItem}>
+                              <Text style={[s.foodMacroVal, { color: colors.green }]}>{itemPro}g</Text>
+                              <Text style={s.foodMacroKey}>protein</Text>
+                            </View>
+                            <View style={s.foodMacroItem}>
+                              <Text style={[s.foodMacroVal, { color: colors.blue }]}>{itemCar}g</Text>
+                              <Text style={s.foodMacroKey}>carbs</Text>
+                            </View>
+                            <View style={s.foodMacroItem}>
+                              <Text style={[s.foodMacroVal, { color: colors.pink }]}>{itemFat}g</Text>
+                              <Text style={s.foodMacroKey}>fat</Text>
+                            </View>
+                          </View>
                         </View>
                       </View>
-                    </View>
-                  ))}
+                    );
+                  })}
                 </>
               )}
 
-              {/* Log button */}
+              {/* Log buttons actions */}
               <TouchableOpacity
-                style={s.logBtn}
+                style={[s.logBtn, isLogged ? { opacity: 0.6 } : null]}
                 activeOpacity={0.88}
-                onPress={() => {
-                  const foodsList = Array.isArray(d.foods) ? d.foods : [];
-                  addMeal({
-                    name: foodsList.map((f: FoodItem) => f.name).join(", ") || "AI Scanned Meal",
-                    calories: Number(d.totalCalories) || 0,
-                    protein: Number(d.totalProtein) || 0,
-                    carbs: Number(d.totalCarbs) || 0,
-                    fat: Number(d.totalFat) || 0,
-                  });
-                  Alert.alert("Logged ✓", "Meal added to your diary!", [
-                    { text: "Done", onPress: () => navigation.goBack() },
-                  ]);
-                }}
+                disabled={isLogged}
+                onPress={() => handleLogMeal(d)}
               >
-                <Text style={s.logBtnText}>+ Log to Diary</Text>
+                <Text style={s.logBtnText}>Add to Daily Intake</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={s.discardBtn} onPress={() => navigation.goBack()} activeOpacity={0.7}>
-                <Text style={s.discardText}>Discard</Text>
-              </TouchableOpacity>
+              <View style={s.actionRow}>
+                <TouchableOpacity
+                  style={s.secondaryActionBtn}
+                  onPress={() => navigation.replace("Camera")}
+                  activeOpacity={0.7}
+                >
+                  <Text style={s.secondaryActionText}>Scan Again</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[s.secondaryActionBtn, s.cancelBtn]}
+                  onPress={() => navigation.goBack()}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[s.secondaryActionText, { color: colors.textMuted }]}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
             </Animated.View>
           );
         })()}
       </ScrollView>
+
+      {/* Confirmation Toast Notification */}
+      <Animated.View style={[s.toastContainer, { transform: [{ translateY: toastTranslateY }] }]}>
+        <View style={s.toastContent}>
+          <Text style={s.toastIcon}>✓</Text>
+          <Text style={s.toastText}>Meal added to today's intake</Text>
+        </View>
+      </Animated.View>
     </View>
   );
 }
@@ -395,6 +504,13 @@ const s = StyleSheet.create({
     paddingVertical: 14, borderWidth: 1, borderColor: BORDER },
   retryText: { color: "#fff", fontWeight: "700", fontSize: 14 },
 
+  // Selectors row
+  selectorRow: { flexDirection: "row", gap: 8, marginBottom: 18 },
+  selectorItem: { flex: 1, backgroundColor: colors.panelSoft, borderRadius: radius.md, borderWidth: 1, borderColor: "rgba(255,255,255,0.06)", paddingVertical: 12, alignItems: "center" },
+  selectorItemActive: { borderColor: colors.purple, backgroundColor: "rgba(139,126,246,0.1)" },
+  selectorText: { color: colors.textMuted, fontSize: 13, fontWeight: "700" },
+  selectorTextActive: { color: colors.text, fontWeight: "800" },
+
   // Totals
   resultHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 15 },
   resultEyebrow: typography.sectionLabel,
@@ -415,7 +531,7 @@ const s = StyleSheet.create({
   macroBarCard: { backgroundColor: colors.panelDeep, borderRadius: radius.xl, borderWidth: 1,
     borderColor: BORDER, padding: 17, marginBottom: 18, ...shadow.card },
 
-  sectionLabel: { ...typography.sectionLabel, marginBottom: 12 },
+  sectionLabel: { ...typography.sectionLabel, marginBottom: 10, marginTop: 4 },
   emptyGlyph: { fontSize: 24, marginBottom: 8, color: colors.violet, fontWeight: "900" },
   detectedChipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
   detectedChip: { ...ui.chip, maxWidth: "48%", backgroundColor: "rgba(168,85,247,0.1)", borderColor: "rgba(168,85,247,0.24)" },
@@ -441,10 +557,36 @@ const s = StyleSheet.create({
     textTransform: "uppercase", letterSpacing: 0.5, marginTop: 2 },
 
   // Actions
-  logBtn: { backgroundColor: colors.purpleDeep, borderRadius: radius.xl, paddingVertical: 16,
+  logBtn: { backgroundColor: colors.purple, borderRadius: radius.xl, paddingVertical: 16,
     alignItems: "center", marginTop: 10,
     ...shadow.glowSoft },
   logBtnText: { color: "#fff", fontSize: 16, fontWeight: "900", letterSpacing: 0.3 },
-  discardBtn: { paddingVertical: 14, alignItems: "center", marginTop: 6 },
-  discardText: { color: "rgba(255,255,255,0.25)", fontSize: 13, fontWeight: "600" },
+  actionRow: { flexDirection: "row", gap: 10, marginTop: 10 },
+  secondaryActionBtn: { flex: 1, backgroundColor: colors.panelSoft, borderWidth: 1, borderColor: "rgba(255,255,255,0.06)", borderRadius: radius.xl, paddingVertical: 14, alignItems: "center" },
+  cancelBtn: { backgroundColor: "transparent", borderWidth: 0 },
+  secondaryActionText: { color: colors.violet, fontSize: 14, fontWeight: "800" },
+
+  // Toast
+  toastContainer: {
+    position: "absolute",
+    bottom: 40,
+    left: 20,
+    right: 20,
+    backgroundColor: "rgba(10, 10, 20, 0.95)",
+    borderWidth: 1.5,
+    borderColor: "rgba(52, 211, 153, 0.35)",
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: colors.green,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  toastContent: { flexDirection: "row", alignItems: "center", gap: 10 },
+  toastIcon: { color: "#34d399", fontSize: 16, fontWeight: "900" },
+  toastText: { color: "#fff", fontSize: 14, fontWeight: "800" },
 });
