@@ -17,7 +17,7 @@
 
 <br />
 
-[**🎥 Watch Demo**](https://www.loom.com/share/397acfc681c742deacb9a4bd58648684) · [**📱 Try It**](#installation) · [**🗺 Roadmap**](#roadmap)
+[![Watch Demo](https://img.shields.io/badge/🎥_Watch_Demo-Loom-7C3AED?style=for-the-badge)](https://www.loom.com/share/397acfc681c742deacb9a4bd58648684) &nbsp;&nbsp; [![Try It](https://img.shields.io/badge/📱_Try_It-Installation-22C55E?style=for-the-badge)](#installation)
 
 <br />
 
@@ -258,34 +258,7 @@ The backend ships with 150+ hand-verified food entries across 10 categories:
 
 All values sourced from USDA nutritional data. Fully extensible — add entries in `backend/server.js`.
 
----
 
-## 🗺 Roadmap
-
-**v1.1 — Accuracy**
-- [ ] Barcode scanner integration
-- [ ] Portion size estimation from image dimensions
-- [ ] Custom food entry + personal DB
-- [ ] Recipe builder (multi-ingredient meals)
-
-**v1.2 — Intelligence**
-- [ ] Weekly AI coach reports
-- [ ] Predictive goal adjustment
-- [ ] Micronutrient tracking (vitamins, minerals)
-- [ ] Hydration tracking
-
-**v1.3 — Social**
-- [ ] Meal sharing + community feed
-- [ ] Challenges + leaderboards
-- [ ] Coach/nutritionist integration
-
-**v2.0 — Platform**
-- [ ] Apple Watch + Wear OS companion
-- [ ] Integration with Apple Health / Google Fit
-- [ ] Restaurant menu scanning (URL → nutrition)
-- [ ] Grocery list generation from weekly plan
-
----
 
 ## 🔒 Privacy & Security
 
