@@ -28,12 +28,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      console.log("AUTH STATE: Timeout fallback triggered");
+      setLoading(false);
+    }, 3000);
+
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      clearTimeout(timer);
       setUser(currentUser);
       setLoading(false);
+      console.log("AUTH STATE:", currentUser ? `Logged in: ${currentUser.uid}` : "Logged out");
     });
 
-    return unsubscribe;
+    return () => {
+      clearTimeout(timer);
+      unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string) => {

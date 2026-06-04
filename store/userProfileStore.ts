@@ -67,36 +67,54 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
 
   subscribeToProfile: (userId: string) => {
     set({ loading: true, error: null });
+
+    // Safety timeout to prevent infinite loading state
+    const timer = setTimeout(() => {
+      console.log("PROFILE STATE: Timeout fallback triggered");
+      if (get().loading) {
+        set({ loading: false });
+      }
+    }, 3000);
+
     const docRef = doc(db, 'users', userId);
     
     const unsubscribe = onSnapshot(
       docRef,
       (docSnap) => {
+        clearTimeout(timer);
         if (docSnap.exists()) {
+          const profileData = { id: userId, ...docSnap.data() } as UserProfile;
           set({ 
-            profile: { id: userId, ...docSnap.data() } as UserProfile,
+            profile: profileData,
             loading: false 
           });
+          console.log("PROFILE STATE: Profile loaded successfully, onboardingCompleted:", profileData.onboardingCompleted);
         } else {
           set({ 
             profile: null, 
             loading: false 
           });
+          console.log("PROFILE STATE: Profile does not exist");
         }
       },
       (error) => {
+        clearTimeout(timer);
         set({ 
           error: error.message,
           loading: false 
         });
+        console.error("PROFILE STATE: Fetch error:", error);
       }
     );
 
-    return unsubscribe;
+    return () => {
+      clearTimeout(timer);
+      unsubscribe();
+    };
   },
 
   updateProfile: async (userId: string, updates: Partial<UserProfile>) => {
-    set({ loading: true, error: null });
+    set({ error: null });
     try {
       const docRef = doc(db, 'users', userId);
       await updateDoc(docRef, {
@@ -108,14 +126,12 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
       const currentProfile = get().profile;
       if (currentProfile) {
         set({ 
-          profile: { ...currentProfile, ...updates },
-          loading: false 
+          profile: { ...currentProfile, ...updates }
         });
       }
     } catch (error: any) {
       set({ 
-        error: error.message,
-        loading: false 
+        error: error.message
       });
       throw error;
     }

@@ -153,11 +153,16 @@ function AppNavigator() {
     }
   }, [user]);
 
+  const onboardingCompleted = profile?.onboardingCompleted || false;
+
+  console.log("AUTH STATE:", user ? `UID: ${user.uid}` : "Logged out");
+  console.log("AUTH LOADING:", authLoading);
+  console.log("PROFILE LOADING:", loadingProfile);
+  console.log("ONBOARDING COMPLETE:", onboardingCompleted);
+
   if (authLoading || (user && loadingProfile)) {
     return <SplashScreen navigation={null as any} />;
   }
-
-  const onboardingCompleted = profile?.onboardingCompleted || false;
 
   return (
     <Stack.Navigator id="StackNavigator" screenOptions={{ headerShown: false, animation: "slide_from_bottom" }}>
