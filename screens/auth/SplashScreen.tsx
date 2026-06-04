@@ -25,7 +25,7 @@ export default function SplashScreen({ navigation }: any) {
   }, []);
 
   useEffect(() => {
-    if (!loading) {
+    if (!loading && navigation) {
       const checkNavigation = async () => {
         if (user) {
           // Fetch profile to check onboarding status
@@ -50,7 +50,7 @@ export default function SplashScreen({ navigation }: any) {
       const timer = setTimeout(checkNavigation, 1500);
       return () => clearTimeout(timer);
     }
-  }, [user, loading, profile]);
+  }, [user, loading, profile, navigation]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
