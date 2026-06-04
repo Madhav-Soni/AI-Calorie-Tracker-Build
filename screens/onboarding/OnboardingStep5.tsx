@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   scroll: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: spacing.xl,
     paddingTop: 20,
     paddingBottom: 40,

@@ -155,7 +155,7 @@ export default function OnboardingStep1({ navigation, route }: any) {
 const styles = StyleSheet.create({
   screen: ui.screen,
   scroll: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: spacing.xl,
     paddingTop: 20,
     paddingBottom: 40,

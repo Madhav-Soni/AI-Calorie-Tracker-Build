@@ -88,8 +88,10 @@ export default function OnboardingStep2({ navigation, route }: any) {
                 activeOpacity={0.8}
               >
                 <Text style={styles.goalIcon}>{goal.icon}</Text>
-                <Text style={styles.goalTitle}>{goal.title}</Text>
-                <Text style={styles.goalDescription}>{goal.description}</Text>
+                <View style={styles.goalTextContainer}>
+                  <Text style={styles.goalTitle} numberOfLines={2}>{goal.title}</Text>
+                  <Text style={styles.goalDescription} numberOfLines={2}>{goal.description}</Text>
+                </View>
               </TouchableOpacity>
             ))}
           </View>
@@ -110,7 +112,7 @@ export default function OnboardingStep2({ navigation, route }: any) {
 const styles = StyleSheet.create({
   screen: ui.screen,
   scroll: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: spacing.xl,
     paddingTop: 20,
     paddingBottom: 40,
@@ -159,28 +161,36 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 20,
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
+    minHeight: 74,
   },
   goalCardSelected: {
     backgroundColor: colors.purpleDeep,
     borderColor: colors.violet,
   },
   goalIcon: {
-    fontSize: 32,
+    fontSize: 28,
+    width: 32,
+    textAlign: 'center',
+  },
+  goalTextContainer: {
+    flex: 1,
+    justifyContent: 'center',
   },
   goalTitle: {
-    flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     color: colors.text,
     fontWeight: '800',
+    flexWrap: 'wrap',
   },
   goalDescription: {
     fontSize: 12,
     color: colors.textDim,
-    marginTop: 4,
+    marginTop: 2,
+    flexWrap: 'wrap',
   },
   nextButton: {
     backgroundColor: colors.purpleDeep,

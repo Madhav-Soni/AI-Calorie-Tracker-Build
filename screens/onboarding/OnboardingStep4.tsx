@@ -106,8 +106,8 @@ export default function OnboardingStep4({ navigation, route }: any) {
               >
                 <Text style={styles.prefIcon}>{pref.icon}</Text>
                 <View style={styles.prefTextContainer}>
-                  <Text style={styles.prefTitle}>{pref.title}</Text>
-                  <Text style={styles.prefDescription}>{pref.description}</Text>
+                  <Text style={styles.prefTitle} numberOfLines={2}>{pref.title}</Text>
+                  <Text style={styles.prefDescription} numberOfLines={2}>{pref.description}</Text>
                 </View>
               </TouchableOpacity>
             ))}
@@ -134,7 +134,7 @@ export default function OnboardingStep4({ navigation, route }: any) {
 const styles = StyleSheet.create({
   screen: ui.screen,
   scroll: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: spacing.xl,
     paddingTop: 20,
     paddingBottom: 40,
@@ -186,7 +186,8 @@ const styles = StyleSheet.create({
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 16,
+    minHeight: 74,
   },
   prefCardSelected: {
     backgroundColor: colors.purpleDeep,
@@ -194,19 +195,24 @@ const styles = StyleSheet.create({
   },
   prefIcon: {
     fontSize: 28,
+    width: 32,
+    textAlign: 'center',
   },
   prefTextContainer: {
     flex: 1,
+    justifyContent: 'center',
   },
   prefTitle: {
     fontSize: 15,
     color: colors.text,
     fontWeight: '800',
+    flexWrap: 'wrap',
   },
   prefDescription: {
     fontSize: 12,
     color: colors.textDim,
     marginTop: 2,
+    flexWrap: 'wrap',
   },
   nextButton: {
     backgroundColor: colors.purpleDeep,

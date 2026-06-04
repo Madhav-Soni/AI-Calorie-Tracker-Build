@@ -154,7 +154,7 @@ export default function ProfileScreen({ navigation }: any) {
         {/* App Preferences */}
         <Text style={s.sectionLabel}>APP PREFERENCES</Text>
         <View style={s.card}>
-          <PrefRow label="Diet Preference" value={profile?.dietPreference?.replace('_', ' ').toUpperCase() || 'NO RESTRICTION'} />
+          <PrefRow label="Diet Preference" value={profile?.dietPreference ? profile.dietPreference.replace('_', ' ').toUpperCase() : 'NO RESTRICTION'} />
           <View style={s.prefDivider} />
           <PrefRow label="Units" value="Metric (g, kcal, kg)" />
           <View style={s.prefDivider} />

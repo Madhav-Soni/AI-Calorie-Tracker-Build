@@ -103,8 +103,8 @@ export default function OnboardingStep3({ navigation, route }: any) {
               >
                 <Text style={styles.levelIcon}>{level.icon}</Text>
                 <View style={styles.levelTextContainer}>
-                  <Text style={styles.levelTitle}>{level.title}</Text>
-                  <Text style={styles.levelDescription}>{level.description}</Text>
+                  <Text style={styles.levelTitle} numberOfLines={2}>{level.title}</Text>
+                  <Text style={styles.levelDescription} numberOfLines={2}>{level.description}</Text>
                 </View>
               </TouchableOpacity>
             ))}
@@ -126,7 +126,7 @@ export default function OnboardingStep3({ navigation, route }: any) {
 const styles = StyleSheet.create({
   screen: ui.screen,
   scroll: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: spacing.xl,
     paddingTop: 20,
     paddingBottom: 40,
@@ -175,10 +175,11 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 18,
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
+    minHeight: 74,
   },
   levelCardSelected: {
     backgroundColor: colors.purpleDeep,
@@ -186,19 +187,24 @@ const styles = StyleSheet.create({
   },
   levelIcon: {
     fontSize: 28,
+    width: 32,
+    textAlign: 'center',
   },
   levelTextContainer: {
     flex: 1,
+    justifyContent: 'center',
   },
   levelTitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: colors.text,
     fontWeight: '800',
+    flexWrap: 'wrap',
   },
   levelDescription: {
-    fontSize: 13,
+    fontSize: 12,
     color: colors.textDim,
     marginTop: 2,
+    flexWrap: 'wrap',
   },
   nextButton: {
     backgroundColor: colors.purpleDeep,
