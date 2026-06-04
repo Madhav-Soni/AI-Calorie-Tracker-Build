@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   StatusBar,
   TextInput,
   TouchableOpacity,
@@ -13,6 +12,7 @@ import {
   Platform,
   Dimensions,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from "react-native-reanimated";
 import { PressScale } from "../../components/PressScale";
 import { colors, radius, shadow, spacing, typography, ui } from "../../components/DesignSystem";

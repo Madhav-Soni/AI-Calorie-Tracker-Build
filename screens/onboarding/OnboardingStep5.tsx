@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, StatusBar, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, StatusBar, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { PressScale } from '../../components/PressScale';
 import { colors, radius, shadow, spacing, typography, ui } from '../../components/DesignSystem';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { useAuth } from '../../contexts/AuthContext';
+import { useUserProfileStore } from '../../store/userProfileStore';
 
 // Mifflin-St Jeor Equation for BMR
 function calculateBMR(weight: number, height: number, age: number, gender: string): number {
@@ -99,16 +101,14 @@ export default function OnboardingStep5({ navigation, route }: any) {
 
     setLoading(true);
     try {
-      // Update user document with onboarding data
-      const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, {
+      // Update user document with onboarding data using store
+      await useUserProfileStore.getState().updateProfile(user.uid, {
         ...userData,
         calorieTarget: calculatedGoals.calories,
         proteinTarget: calculatedGoals.protein,
         carbTarget: calculatedGoals.carbs,
         fatTarget: calculatedGoals.fat,
         onboardingCompleted: true,
-        updatedAt: serverTimestamp(),
       });
 
       // Navigate to main app
