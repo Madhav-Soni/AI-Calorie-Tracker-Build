@@ -15,6 +15,7 @@ import { colors, radius, shadow, spacing, typography, ui } from "../components/D
 import { PressScale } from "../components/PressScale";
 import { useUserProfileStore } from '../store/userProfileStore';
 import { useAuth } from '../contexts/AuthContext';
+import { useMealStore } from "../useMealStore";
 
 function StatPill({ value, label, color }: { value: string; label: string; color: string }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
