@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { doc, getDoc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, updateDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { User } from 'firebase/auth';
 
@@ -117,18 +117,17 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
     set({ error: null });
     try {
       const docRef = doc(db, 'users', userId);
-      await updateDoc(docRef, {
+      // Use setDoc + merge: true to create the document if it doesn't exist
+      await setDoc(docRef, {
         ...updates,
         updatedAt: serverTimestamp(),
-      });
+      }, { merge: true });
       
       // Update local state immediately
       const currentProfile = get().profile;
-      if (currentProfile) {
-        set({ 
-          profile: { ...currentProfile, ...updates }
-        });
-      }
+      set({ 
+        profile: { ...(currentProfile ?? { id: userId } as any), ...updates }
+      });
     } catch (error: any) {
       set({ 
         error: error.message

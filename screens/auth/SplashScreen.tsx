@@ -28,20 +28,23 @@ export default function SplashScreen({ navigation }: any) {
     if (!loading && navigation) {
       const checkNavigation = async () => {
         if (user) {
-          // Fetch profile to check onboarding status
+          // Subscribe to profile to trigger fetch
           const unsubscribe = useUserProfileStore.getState().subscribeToProfile(user.uid);
           
           // Give profile time to load
           setTimeout(() => {
             unsubscribe();
             
-            const onboardingComplete = profile?.onboardingCompleted || false;
+            // Read fresh state directly from store rather than using stale closure variable
+            const freshProfile = useUserProfileStore.getState().profile;
+            const onboardingComplete = freshProfile?.onboardingCompleted || false;
+            
             if (onboardingComplete) {
               navigation.replace('Tabs');
             } else {
               navigation.replace('OnboardingStep1');
             }
-          }, 500);
+          }, 800);
         } else {
           navigation.replace('Welcome');
         }
@@ -50,7 +53,7 @@ export default function SplashScreen({ navigation }: any) {
       const timer = setTimeout(checkNavigation, 1500);
       return () => clearTimeout(timer);
     }
-  }, [user, loading, profile, navigation]);
+  }, [user, loading, navigation]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
