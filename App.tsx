@@ -9,6 +9,7 @@ import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import type { AnalysisResult } from "./services/foodAnalysis";
 
 import HomeScreen from "./screens/HomeScreen";
+import ProgressScreen from "./screens/ProgressScreen";
 import HistoryScreen from "./screens/HistoryScreen";
 import ProfileScreen from "./screens/ProfileScreen";
 import CameraScreen from "./screens/CameraScreen";
@@ -51,6 +52,7 @@ export type RootStackParamList = {
 
 export type TabParamList = {
   Home: undefined;
+  Progress: undefined;
   History: undefined;
   Profile: undefined;
 };
@@ -73,6 +75,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     const focused = state.index === index;
     const icons: Record<string, string> = {
       Home: "⌂",
+      Progress: "📈",
       History: "◷",
       Profile: "◉",
     };
@@ -97,13 +100,14 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   };
 
   return (
-    <View style={[styles.tabBarContainer, { bottom: Math.max(insets.bottom, 10) + 8 }]}>
+    <View style={[styles.tabBarContainer, { bottom: Math.max(insets.bottom, 12) }]}>
       <BlurView tint="dark" intensity={42} style={StyleSheet.absoluteFill} />
       <View style={styles.tabBar}>
         {renderTab(0)}
-        <View style={styles.fabPlaceholder} />
         {renderTab(1)}
+        <View style={styles.fabPlaceholder} />
         {renderTab(2)}
+        {renderTab(3)}
       </View>
 
       {/* Center Floating Camera FAB - floats ABOVE nav and uses only shadow */}
@@ -125,6 +129,7 @@ function TabNavigator() {
       screenOptions={{ headerShown: false }}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Progress" component={ProgressScreen} />
       <Tab.Screen name="History" component={HistoryScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
@@ -216,67 +221,62 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 16,
     right: 16,
-    backgroundColor: "rgba(8, 8, 19, 0.78)",
+    backgroundColor: "rgba(10, 10, 22, 0.88)",
     borderWidth: 1,
-    borderTopColor: colors.border,
-    borderColor: "rgba(139, 126, 246, 0.16)",
-    borderRadius: 28,
+    borderColor: "rgba(139, 126, 246, 0.22)",
+    borderRadius: 22,
     overflow: "hidden",
-    height: 80,
+    height: 64,
     ...shadow.card,
   },
   tabBar: {
     flexDirection: "row",
     height: "100%",
-    paddingBottom: 4,
-    paddingHorizontal: 8,
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "space-around",
   },
   tabItem: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 3,
     height: "100%",
   },
   activeRail: {
-    width: 14,
-    height: 3,
+    width: 4,
+    height: 4,
     borderRadius: 2,
     backgroundColor: "transparent",
-    marginBottom: 2,
+    marginBottom: 4,
   },
   activeRailVisible: {
     backgroundColor: colors.violet,
   },
   tabIcon: {
-    fontSize: 20,
+    fontSize: 18,
     color: colors.textDim,
-    lineHeight: 22,
   },
   tabIconActive: {
     color: colors.violet,
   },
   tabLabel: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "700",
     color: colors.textDim,
-    letterSpacing: -0.2,
+    marginTop: 2,
   },
   tabLabelActive: {
     color: colors.violet,
   },
   fabPlaceholder: {
-    width: 60,
-    height: 60,
+    width: 56,
+    height: 56,
   },
   fab: {
     position: "absolute",
-    top: -12,
+    top: -18,
     alignSelf: "center",
-    width: 60,
-    height: 60,
+    width: 56,
+    height: 56,
     borderRadius: radius.pill,
     backgroundColor: colors.purpleDeep,
     alignItems: "center",
@@ -290,8 +290,8 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
   },
   fabIcon: {
-    fontSize: 28,
-    lineHeight: 30,
+    fontSize: 26,
+    lineHeight: 28,
     color: "#fff",
     fontWeight: "900",
   },

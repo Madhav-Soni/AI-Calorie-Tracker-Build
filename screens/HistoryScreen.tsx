@@ -5,25 +5,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, radius, shadow, spacing, typography, ui } from "../components/DesignSystem";
+import { useMealStore, Meal } from "../useMealStore";
 
 const { width: W } = Dimensions.get("window");
 const CARD_BG = colors.panelSolid;
 const BORDER = colors.border;
 
-const WEEKLY_CALORIES = [
-  { day: "Mon", value: 1840 }, { day: "Tue", value: 2210 },
-  { day: "Wed", value: 1650 }, { day: "Thu", value: 1990 },
-  { day: "Fri", value: 2340 }, { day: "Sat", value: 1720 },
-  { day: "Sun", value: 1580 },
-];
-const WEEKLY_PROTEIN = [
-  { day: "Mon", value: 142 }, { day: "Tue", value: 98 },
-  { day: "Wed", value: 165 }, { day: "Thu", value: 130 },
-  { day: "Fri", value: 88 },  { day: "Sat", value: 155 },
-  { day: "Sun", value: 112 },
-];
-const GOAL = 2000;
-const STREAK = { current: 14, longest: 21, thisWeek: [true,true,true,true,true,false,false], total: 47, avg: 1904 };
 const DAYS = ["M","T","W","T","F","S","S"];
 const TODAY_IDX = (new Date().getDay() + 6) % 7;
 
@@ -89,6 +76,7 @@ function MacroSplitRow({ label, value, goal, color, pct, delay }: {
 }
 
 export default function HistoryScreen() {
+  const { meals, goals } = useMealStore();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(24)).current;
   const streakGlow = useRef(new Animated.Value(0)).current;
@@ -105,9 +93,125 @@ export default function HistoryScreen() {
   }, []);
 
   const glowOpacity = streakGlow.interpolate({ inputRange: [0, 1], outputRange: [0.16, 0.32] });
-  const maxCal = Math.max(...WEEKLY_CALORIES.map(d => d.value));
-  const maxPro = Math.max(...WEEKLY_PROTEIN.map(d => d.value));
-  const avgCal = Math.round(WEEKLY_CALORIES.reduce((a, b) => a + b.value, 0) / 7);
+
+  // 1. Calculate Monday-Sunday dates for the current week
+  const getWeekDates = () => {
+    const current = new Date();
+    const day = current.getDay();
+    const diff = current.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(current.setDate(diff));
+    
+    const dates: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      dates.push(d);
+    }
+    return dates;
+  };
+
+  const weekDates = getWeekDates();
+  const daysShort = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+  // Weekly data calculations
+  const weeklyCalories = weekDates.map((date, i) => {
+    const dateStr = date.toISOString().slice(0, 10);
+    const dailyMeals = meals.filter((m: Meal) => m.loggedAt.slice(0, 10) === dateStr);
+    const totalCal = dailyMeals.reduce((sum: number, m: Meal) => sum + m.calories, 0);
+    return { day: daysShort[i], value: totalCal };
+  });
+
+  const weeklyProtein = weekDates.map((date, i) => {
+    const dateStr = date.toISOString().slice(0, 10);
+    const dailyMeals = meals.filter((m: Meal) => m.loggedAt.slice(0, 10) === dateStr);
+    const totalPro = dailyMeals.reduce((sum: number, m: Meal) => sum + m.protein, 0);
+    return { day: daysShort[i], value: totalPro };
+  });
+
+  const goalCalories = goals.calories || 2000;
+  const goalProtein = goals.protein || 150;
+  const goalCarbs = goals.carbs || 200;
+  const goalFat = goals.fat || 65;
+
+  const maxCal = Math.max(...weeklyCalories.map(d => d.value), goalCalories);
+  const maxPro = Math.max(...weeklyProtein.map(d => d.value), goalProtein);
+  const avgCal = Math.round(weeklyCalories.reduce((a, b) => a + b.value, 0) / 7);
+  const avgPro = Math.round(weeklyProtein.reduce((a, b) => a + b.value, 0) / 7);
+
+  // Streak calculations
+  const calculateStreak = () => {
+    if (meals.length === 0) return { current: 0, longest: 0, total: 0, thisWeek: [false, false, false, false, false, false, false] };
+    
+    const loggedDates = new Set<string>(meals.map((m: Meal) => m.loggedAt.slice(0, 10)));
+    
+    const thisWeek = weekDates.map(date => {
+      const dateStr = date.toISOString().slice(0, 10);
+      return loggedDates.has(dateStr);
+    });
+
+    let current = 0;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const yesterdayStr = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    
+    let checkDate = todayStr;
+    if (!loggedDates.has(todayStr)) {
+      checkDate = yesterdayStr;
+    }
+    
+    const d = new Date(checkDate);
+    while (loggedDates.has(d.toISOString().slice(0, 10))) {
+      current++;
+      d.setDate(d.getDate() - 1);
+    }
+
+    let longest = 0;
+    let temp = 0;
+    const ascDates = Array.from(loggedDates).map((d: string) => new Date(d)).sort((a, b) => a.getTime() - b.getTime());
+    
+    let lastTime: number | null = null;
+    for (const date of ascDates) {
+      if (lastTime === null) {
+        temp = 1;
+      } else {
+        const diffTime = Math.abs(date.getTime() - lastTime);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        if (diffDays === 1) {
+          temp++;
+        } else if (diffDays > 1) {
+          longest = Math.max(longest, temp);
+          temp = 1;
+        }
+      }
+      lastTime = date.getTime();
+    }
+    longest = Math.max(longest, temp);
+
+    return {
+      current,
+      longest,
+      total: loggedDates.size,
+      thisWeek
+    };
+  };
+
+  const streak = calculateStreak();
+
+  // Today's Macro Split calculations
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayMeals = meals.filter((m: Meal) => m.loggedAt.slice(0, 10) === todayKey);
+  const todayCal = todayMeals.reduce((sum: number, m: Meal) => sum + m.calories, 0);
+  const todayPro = todayMeals.reduce((sum: number, m: Meal) => sum + m.protein, 0);
+  const todayCarbs = todayMeals.reduce((sum: number, m: Meal) => sum + m.carbs, 0);
+  const todayFat = todayMeals.reduce((sum: number, m: Meal) => sum + m.fat, 0);
+
+  const macroSplit = [
+    { label: "Protein", value: todayPro, goal: goalProtein, color: colors.blue, pct: Math.min(100, goalProtein > 0 ? Math.round((todayPro / goalProtein) * 100) : 0) },
+    { label: "Carbs", value: todayCarbs, goal: goalCarbs, color: colors.green, pct: Math.min(100, goalCarbs > 0 ? Math.round((todayCarbs / goalCarbs) * 100) : 0) },
+    { label: "Fat", value: todayFat, goal: goalFat, color: colors.pink, pct: Math.min(100, goalFat > 0 ? Math.round((todayFat / goalFat) * 100) : 0) },
+  ];
+
+  const onTrackCount = weeklyCalories.filter(d => d.value > 0 && d.value <= goalCalories).length;
+  const isEmpty = meals.length === 0;
 
   return (
     <SafeAreaView style={s.screen}>
@@ -117,137 +221,145 @@ export default function HistoryScreen() {
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
           <Text style={s.pageTitle}>Progress Lab</Text>
 
-          {/* ── Streak Card ── */}
-          <Animated.View style={[s.streakCard, { shadowOpacity: glowOpacity as any }]}>
-            {/* Gold glow orb */}
-            <Animated.View style={[s.streakOrb, { opacity: glowOpacity }]} />
+          {isEmpty ? (
+            <View style={s.emptyContainer}>
+              <Text style={s.emptyIcon}>📊</Text>
+              <Text style={s.emptyTitle}>No history yet</Text>
+              <Text style={s.emptySub}>
+                Start logging meals to build your streak and view your weekly analytics.
+              </Text>
+            </View>
+          ) : (
+            <>
+              {/* ── Streak Card ── */}
+              <Animated.View style={[s.streakCard, { shadowOpacity: glowOpacity as any }]}>
+                {/* Gold glow orb */}
+                <Animated.View style={[s.streakOrb, { opacity: glowOpacity }]} />
 
-            <View style={s.streakHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.streakSublabel}>CURRENT STREAK</Text>
-                <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 6 }}>
-                  <Text style={s.streakNum}>{STREAK.current}</Text>
-                  <Text style={s.streakDays}>days</Text>
+                <View style={s.streakHeader}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.streakSublabel}>CURRENT STREAK</Text>
+                    <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 6 }}>
+                      <Text style={s.streakNum}>{streak.current}</Text>
+                      <Text style={s.streakDays}>days</Text>
+                    </View>
+                  </View>
+                  <View style={s.streakBest}>
+                    <Text style={s.streakBestLabel}>Best</Text>
+                    <Text style={s.streakBestNum}>{streak.longest}d</Text>
+                  </View>
+                </View>
+
+                {/* Week dots */}
+                <View style={s.weekDots}>
+                  {streak.thisWeek.map((done, i) => (
+                    <View key={i} style={s.weekDotWrap}>
+                      <View style={[s.weekDot, done ? s.weekDotActive : s.weekDotInactive,
+                        i === TODAY_IDX && done && s.weekDotToday]}>
+                        {done && <Text style={{ fontSize: 9, color: colors.ink }}>✓</Text>}
+                      </View>
+                      <Text style={[s.weekDotLabel, done && { color: "#facc15" }]}>{DAYS[i]}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                {/* Stats strip */}
+                <View style={s.statsStrip}>
+                  <View style={s.statItem}>
+                    <Text style={s.statNum}>{streak.total}</Text>
+                    <Text style={s.statLabel}>Days Logged</Text>
+                  </View>
+                  <View style={s.statDivider} />
+                  <View style={s.statItem}>
+                    <Text style={s.statNum}>{avgCal.toLocaleString()}</Text>
+                    <Text style={s.statLabel}>Avg Calories</Text>
+                  </View>
+                  <View style={s.statDivider} />
+                  <View style={s.statItem}>
+                    <Text style={s.statNum}>{onTrackCount}/7</Text>
+                    <Text style={s.statLabel}>On Goal</Text>
+                  </View>
+                </View>
+              </Animated.View>
+
+              {/* ── Weekly Calories Chart ── */}
+              <View style={s.card}>
+                <View style={s.cardHeader}>
+                  <Text style={s.cardTitle}>Weekly Calories</Text>
+                  <View style={s.goalChip}>
+                    <Text style={s.goalChipText}>{goalCalories.toLocaleString()} goal</Text>
+                  </View>
+                </View>
+
+                {/* Goal line label */}
+                <View style={s.chartWrap}>
+                  <View style={s.goalLineWrap} pointerEvents="none">
+                    <View style={s.goalLine} />
+                    <Text style={s.goalLineLabel}>goal</Text>
+                  </View>
+
+                  <View style={s.chartBars}>
+                    {weeklyCalories.map((d, i) => (
+                      <View key={i} style={s.barCol}>
+                        <AnimBar value={d.value} max={maxCal} goal={goalCalories} delay={i * 60} isToday={i === TODAY_IDX} />
+                        <Text style={[s.barDay, i === TODAY_IDX && s.barDayToday]}>{d.day.charAt(0)}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+
+                <View style={s.chartLegend}>
+                  <View style={s.legendRow}>
+                    <View style={[s.legendDot, { backgroundColor: "#34d399" }]} /><Text style={s.legendText}>Under goal</Text>
+                  </View>
+                  <View style={s.legendRow}>
+                    <View style={[s.legendDot, { backgroundColor: "#f87171" }]} /><Text style={s.legendText}>Over goal</Text>
+                  </View>
+                  <View style={s.legendRow}>
+                    <View style={[s.legendDot, { backgroundColor: "#a855f7" }]} /><Text style={s.legendText}>Today</Text>
+                  </View>
+                </View>
+
+                <View style={s.chartFooter}>
+                  <Text style={s.chartFooterAvg}>Avg {avgCal.toLocaleString()} kcal/day</Text>
+                  <View style={s.onTrackBadge}>
+                    <Text style={s.onTrackText}>✓ On Track</Text>
+                  </View>
                 </View>
               </View>
-              <View style={s.streakBest}>
-                <Text style={s.streakBestLabel}>Best</Text>
-                <Text style={s.streakBestNum}>{STREAK.longest}d</Text>
-              </View>
-            </View>
 
-            {/* Week dots */}
-            <View style={s.weekDots}>
-              {STREAK.thisWeek.map((done, i) => (
-                <View key={i} style={s.weekDotWrap}>
-                  <View style={[s.weekDot, done ? s.weekDotActive : s.weekDotInactive,
-                    i === TODAY_IDX && done && s.weekDotToday]}>
-                    {done && <Text style={{ fontSize: 9, color: colors.ink }}>✓</Text>}
+              {/* ── Protein Intake Chart ── */}
+              <View style={s.card}>
+                <View style={s.cardHeader}>
+                  <Text style={s.cardTitle}>Protein Intake</Text>
+                  <View style={[s.goalChip, { borderColor: "rgba(52,211,153,0.3)", backgroundColor: "rgba(52,211,153,0.08)" }]}>
+                    <Text style={[s.goalChipText, { color: "#34d399" }]}>
+                      avg {avgPro}g
+                    </Text>
                   </View>
-                  <Text style={[s.weekDotLabel, done && { color: "#facc15" }]}>{DAYS[i]}</Text>
                 </View>
-              ))}
-            </View>
 
-            {/* Stats strip */}
-            <View style={s.statsStrip}>
-              <View style={s.statItem}>
-                <Text style={s.statNum}>{STREAK.total}</Text>
-                <Text style={s.statLabel}>Days Logged</Text>
-              </View>
-              <View style={s.statDivider} />
-              <View style={s.statItem}>
-                <Text style={s.statNum}>{STREAK.avg.toLocaleString()}</Text>
-                <Text style={s.statLabel}>Avg Calories</Text>
-              </View>
-              <View style={s.statDivider} />
-              <View style={s.statItem}>
-                <Text style={s.statNum}>5/7</Text>
-                <Text style={s.statLabel}>On Goal</Text>
-              </View>
-            </View>
-          </Animated.View>
-
-          {/* ── Weekly Calories Chart ── */}
-          <View style={s.card}>
-            <View style={s.cardHeader}>
-              <Text style={s.cardTitle}>Weekly Calories</Text>
-              <View style={s.goalChip}>
-                <Text style={s.goalChipText}>{GOAL.toLocaleString()} goal</Text>
-              </View>
-            </View>
-
-            {/* Goal line label */}
-            <View style={s.chartWrap}>
-              <View style={s.goalLineWrap} pointerEvents="none">
-                <View style={s.goalLine} />
-                <Text style={s.goalLineLabel}>goal</Text>
+                <View style={s.chartBars}>
+                  {weeklyProtein.map((d, i) => {
+                    return (
+                      <View key={i} style={[s.barCol, { height: 100 }]}>
+                        <ProteinBar value={d.value} max={maxPro} delay={300 + i * 60} />
+                        <Text style={s.barDay}>{d.day.charAt(0)}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
               </View>
 
-              <View style={s.chartBars}>
-                {WEEKLY_CALORIES.map((d, i) => (
-                  <View key={i} style={s.barCol}>
-                    <AnimBar value={d.value} max={maxCal} goal={GOAL} delay={i * 60} isToday={i === TODAY_IDX} />
-                    <Text style={[s.barDay, i === TODAY_IDX && s.barDayToday]}>{d.day.charAt(0)}</Text>
-                  </View>
-                ))}
+              {/* ── Macro Split ── */}
+              <View style={s.card}>
+                <Text style={s.cardTitle}>Today's Macro Split</Text>
+                <View style={s.macroSplit}>
+                  {macroSplit.map((m, i) => <MacroSplitRow key={m.label} {...m} delay={200 + i * 90} />)}
+                </View>
               </View>
-            </View>
-
-            <View style={s.chartLegend}>
-              <View style={s.legendRow}>
-                <View style={[s.legendDot, { backgroundColor: "#34d399" }]} /><Text style={s.legendText}>Under goal</Text>
-              </View>
-              <View style={s.legendRow}>
-                <View style={[s.legendDot, { backgroundColor: "#f87171" }]} /><Text style={s.legendText}>Over goal</Text>
-              </View>
-              <View style={s.legendRow}>
-                <View style={[s.legendDot, { backgroundColor: "#a855f7" }]} /><Text style={s.legendText}>Today</Text>
-              </View>
-            </View>
-
-            <View style={s.chartFooter}>
-              <Text style={s.chartFooterAvg}>Avg {avgCal.toLocaleString()} kcal/day</Text>
-              <View style={s.onTrackBadge}>
-                <Text style={s.onTrackText}>✓ On Track</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* ── Protein Intake Chart ── */}
-          <View style={s.card}>
-            <View style={s.cardHeader}>
-              <Text style={s.cardTitle}>Protein Intake</Text>
-              <View style={[s.goalChip, { borderColor: "rgba(52,211,153,0.3)", backgroundColor: "rgba(52,211,153,0.08)" }]}>
-                <Text style={[s.goalChipText, { color: "#34d399" }]}>
-                  avg {Math.round(WEEKLY_PROTEIN.reduce((a,b)=>a+b.value,0)/7)}g
-                </Text>
-              </View>
-            </View>
-
-            <View style={s.chartBars}>
-              {WEEKLY_PROTEIN.map((d, i) => {
-                return (
-                  <View key={i} style={[s.barCol, { height: 100 }]}>
-                    <ProteinBar value={d.value} max={maxPro} delay={300 + i * 60} />
-                    <Text style={s.barDay}>{d.day.charAt(0)}</Text>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* ── Macro Split ── */}
-          <View style={s.card}>
-            <Text style={s.cardTitle}>Today's Macro Split</Text>
-            <View style={s.macroSplit}>
-              {[
-                { label: "Protein", value: 68, goal: 150, color: colors.blue, pct: 45 },
-                { label: "Carbs", value: 118, goal: 200, color: colors.green, pct: 59 },
-                { label: "Fat", value: 30, goal: 65, color: colors.pink, pct: 46 },
-              ].map((m, i) => <MacroSplitRow key={m.label} {...m} delay={200 + i * 90} />)}
-            </View>
-          </View>
+            </>
+          )}
 
         </Animated.View>
         <View style={{ height: 100 }} />
@@ -334,4 +446,35 @@ const s = StyleSheet.create({
   macroSplitTrack: { flex: 1, height: 8, backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 4, overflow: "hidden" },
   macroSplitVal: { width: 60, fontSize: 12, fontWeight: "900", textAlign: "right" },
   macroSplitGoal: { fontSize: 10, color: "rgba(255,255,255,0.25)", fontWeight: "500" },
+
+  // Empty State
+  emptyContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 64,
+    paddingHorizontal: 24,
+    backgroundColor: colors.panelDeep,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginTop: 12,
+    ...shadow.card,
+  },
+  emptyIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    color: "#fff",
+    fontWeight: "800",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  emptySub: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.4)",
+    textAlign: "center",
+    lineHeight: 20,
+  },
 });
