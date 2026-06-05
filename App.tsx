@@ -5,6 +5,9 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 
 import type { AnalysisResult } from "./services/foodAnalysis";
 
@@ -72,11 +75,11 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     const route = state.routes[index];
     const { options } = descriptors[route.key];
     const focused = state.index === index;
-    const icons: Record<string, string> = {
-      Home: "⌂",
-      Progress: "📈",
-      History: "◷",
-      Profile: "◉",
+    const icons: Record<string, { name: keyof typeof Ionicons.glyphMap; activeName: keyof typeof Ionicons.glyphMap }> = {
+      Home:     { name: 'home-outline',    activeName: 'home' },
+      Progress: { name: 'bar-chart-outline', activeName: 'bar-chart' },
+      History:  { name: 'time-outline',    activeName: 'time' },
+      Profile:  { name: 'person-outline',  activeName: 'person' },
     };
 
     return (
@@ -88,9 +91,11 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         }}
       >
         <View style={[styles.activeRail, focused && styles.activeRailVisible]} />
-        <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>
-          {icons[route.name]}
-        </Text>
+        <Ionicons
+          name={focused ? icons[route.name].activeName : icons[route.name].name}
+          size={22}
+          color={focused ? colors.violet : colors.textDim}
+        />
         <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>
           {route.name}
         </Text>
@@ -118,7 +123,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         style={styles.fab}
         onPress={() => rootNav?.navigate("Camera")}
       >
-        <Text style={styles.fabIcon}>＋</Text>
+        <Ionicons name="camera" size={26} color="#fff" />
       </PressScale>
     </View>
   );
@@ -148,6 +153,7 @@ function AppNavigator() {
   React.useEffect(() => {
     if (user) {
       useMealStore.getState().clearForSignOut();
+      useUserProfileStore.getState().clearProfile();
       useMealStore.getState().setUserId(user.uid);
       const unsubscribeProfile = subscribeToProfile(user.uid);
       const unsubscribeMeals = subscribeToUserMeals(user.uid, (meals) => {
@@ -157,9 +163,11 @@ function AppNavigator() {
         unsubscribeProfile();
         unsubscribeMeals();
         useMealStore.getState().clearForSignOut();
+        useUserProfileStore.getState().clearProfile();
       };
     } else {
       useMealStore.getState().clearForSignOut();
+      useUserProfileStore.getState().clearProfile();
     }
   }, [user?.uid]);
 
@@ -214,11 +222,15 @@ function AppNavigator() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <NavigationContainer>
-        <AppNavigator />
-      </NavigationContainer>
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <AuthProvider>
+          <NavigationContainer>
+            <AppNavigator />
+          </NavigationContainer>
+        </AuthProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 

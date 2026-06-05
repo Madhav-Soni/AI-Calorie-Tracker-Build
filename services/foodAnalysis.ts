@@ -68,8 +68,8 @@ export async function analyzeFood(
   // Compress the image to prevent token limit exceeded on Cloudflare
   const manipulated = await ImageManipulator.manipulateAsync(
     imageUri,
-    [{ resize: { width: 512 } }],
-    { compress: 0.5, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+    [{ resize: { width: 1000 } }],
+    { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG, base64: true }
   );
 
   onProgress?.("uploading", 40);

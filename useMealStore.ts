@@ -1,8 +1,17 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy } from "firebase/firestore";
+import { collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy, where } from "firebase/firestore";
 import { db } from "./firebase/config";
+import * as Crypto from "expo-crypto";
+
+export const toLocalDateKey = (iso: string): string => {
+  const d = new Date(iso);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 export interface Meal {
   id: string;
@@ -60,11 +69,9 @@ interface MealStore {
   syncMealsFromFirebase: (meals: Meal[]) => void;
 }
 
-const toDateKey = (iso: string) => iso.slice(0, 10);
-
 export const selectDailyTotals = (date?: string) => (state: MealStore) => {
-  const key = date ?? toDateKey(new Date().toISOString());
-  const daily = state.meals.filter((m) => toDateKey(m.loggedAt) === key);
+  const key = date ?? toLocalDateKey(new Date().toISOString());
+  const daily = state.meals.filter((m) => toLocalDateKey(m.loggedAt) === key);
   return daily.reduce(
     (acc, m) => ({
       calories: acc.calories + (m.calories || 0),
@@ -105,13 +112,26 @@ export const useMealStore = create<MealStore>()(
           weightHistory: [],
           userId: null,
         });
+        AsyncStorage.removeItem("meal-tracker-store").catch((err) => {
+          console.error("Failed to clear AsyncStorage meal-tracker-store:", err);
+        });
       },
 
       addMeal: async (meal) => {
+        // Sanity check to prevent AI hallucinations or invalid manual logs from breaking dashboard
+        if (
+          meal.calories < 0 || meal.calories > 5000 ||
+          meal.protein < 0 || meal.protein > 500 ||
+          meal.carbs < 0 || meal.carbs > 500 ||
+          meal.fat < 0 || meal.fat > 300
+        ) {
+          throw new Error("Invalid nutrition values detected. Please verify inputs.");
+        }
+
         const uid = get().userId;
         const newMeal: Meal = {
           ...meal,
-          id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          id: Crypto.randomUUID(),
           loggedAt: new Date().toISOString(),
         };
 
@@ -166,7 +186,7 @@ export const useMealStore = create<MealStore>()(
           userProfile: profile,
           goals: calculatedGoals,
           onboardingCompleted: true,
-          weightHistory: [{ date: toDateKey(new Date().toISOString()), weight: profile.weight }],
+          weightHistory: [{ date: toLocalDateKey(new Date().toISOString()), weight: profile.weight }],
         }),
 
       resetOnboarding: () =>
@@ -185,7 +205,7 @@ export const useMealStore = create<MealStore>()(
 
       logWeight: (weight) =>
         set((state) => {
-          const date = toDateKey(new Date().toISOString());
+          const date = toLocalDateKey(new Date().toISOString());
           const filtered = state.weightHistory.filter((w) => w.date !== date);
           const updatedProfile = state.userProfile
             ? { ...state.userProfile, weight }
@@ -221,7 +241,16 @@ export const useMealStore = create<MealStore>()(
 // Listener setup for Firestore meals sync
 export function subscribeToUserMeals(userId: string, onUpdate: (meals: Meal[]) => void) {
   const mealsCol = collection(db, "users", userId, "meals");
-  const q = query(mealsCol, orderBy("loggedAt", "desc"));
+  
+  // Only fetch last 90 days
+  const ninetyDaysAgo = new Date();
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+  const q = query(
+    mealsCol,
+    where("loggedAt", ">=", ninetyDaysAgo.toISOString()),
+    orderBy("loggedAt", "desc")
+  );
   
   return onSnapshot(
     q,

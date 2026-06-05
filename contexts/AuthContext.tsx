@@ -10,6 +10,8 @@ import {
 } from "firebase/auth";
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebase/config";
+import { useMealStore } from "../useMealStore";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 interface AuthContextType {
   user: User | null;
@@ -68,7 +70,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    await signOut(auth);
+    try {
+      // 1. Reset Zustand store state
+      useMealStore.getState().resetOnboarding();
+      useMealStore.getState().setUserId(null);
+      
+      // 2. Wipe persisted AsyncStorage for this store
+      await AsyncStorage.removeItem('meal-tracker-store');
+      
+      // 3. Sign out of Firebase
+      await signOut(auth);
+    } catch (e) {
+      console.error('Sign out error:', e);
+    }
   };
 
   const resetPassword = async (email: string) => {

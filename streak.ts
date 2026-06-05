@@ -3,15 +3,25 @@ export interface StreakResult {
   best: number;
 }
 
+export const toLocalDateKey = (iso: string): string => {
+  const d = new Date(iso);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export function calculateStreaks(dates: string[]): StreakResult {
   if (!dates.length) return { current: 0, best: 0 };
 
   const unique = Array.from(
-    new Set(dates.map((d) => new Date(d).toISOString().slice(0, 10)))
+    new Set(dates.map((d) => toLocalDateKey(d)))
   ).sort();
 
-  const today = new Date().toISOString().slice(0, 10);
-  const yesterday = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+  const today = toLocalDateKey(new Date().toISOString());
+  const yesterday = toLocalDateKey(
+    new Date(Date.now() - 864e5).toISOString()
+  );
 
   let best = 1, run = 1;
 
