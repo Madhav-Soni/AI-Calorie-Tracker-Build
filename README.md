@@ -102,6 +102,15 @@ Express Backend (Node.js)
 
 ---
 
+## 🤖 AI Logs
+
+This project was built with AI-assisted pair programming. The design decisions, prompt engineering iterations, and technical solutions are documented in the following shared conversation logs:
+
+- [**Claude Conversation Log**](https://claude.ai/share/4ea45fea-f75b-4b45-9255-ffc7d1086e61) — Refinement of the AI pipeline prompt, Hermes engine FormData debugging, and Expo camera integration.
+- [**ChatGPT Conversation Log**](https://chatgpt.com/share/6a2256ac-6fac-83e8-bf26-a0d88bd48c0c) — Initial layout planning, Firestore database rules/schema design, and onboarding calculations.
+
+---
+
 ## 🏗 System Architecture
 
 ```
