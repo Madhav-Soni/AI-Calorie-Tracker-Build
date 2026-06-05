@@ -56,6 +56,8 @@ interface MealStore {
   userProfile: UserProfile | null;
   weightHistory: Array<{ date: string; weight: number }>;
   userId: string | null;
+  mealsLoading: boolean;
+  mealsError: string | null;
   
   // Actions
   setUserId: (userId: string | null) => void;
@@ -119,6 +121,8 @@ export const useMealStore = create<MealStore>()(
     userProfile: null,
     weightHistory: [],
     userId: null,
+    mealsLoading: false,
+    mealsError: null,
 
     setUserId: (userId) => {
       currentUserId = userId;
@@ -135,6 +139,8 @@ export const useMealStore = create<MealStore>()(
         userProfile: null,
         weightHistory: [],
         userId: null,
+        mealsLoading: false,
+        mealsError: null,
       });
       AsyncStorage.removeItem("anon:meal-tracker-store").catch(() => {});
     },
@@ -262,6 +268,8 @@ export const useMealStore = create<MealStore>()(
       userProfile: null,
       weightHistory: [],
       userId: null,
+      mealsLoading: false,
+      mealsError: null,
     }),
 
     updateGoals: (goals) =>
@@ -297,6 +305,8 @@ export function subscribeToUserMeals(userId: string, onUpdate: (meals: Meal[]) =
     orderBy("loggedAt", "desc")
   );
   
+  useMealStore.setState({ mealsLoading: true, mealsError: null });
+
   return onSnapshot(
     q,
     (snapshot) => {
@@ -304,10 +314,12 @@ export function subscribeToUserMeals(userId: string, onUpdate: (meals: Meal[]) =
       snapshot.forEach((doc) => {
         meals.push(doc.data() as Meal);
       });
+      useMealStore.setState({ mealsLoading: false, mealsError: null });
       onUpdate(meals);
     },
     (err) => {
       console.error("Error subscribing to meals:", err);
+      useMealStore.setState({ mealsLoading: false, mealsError: err.message });
     }
   );
 }
