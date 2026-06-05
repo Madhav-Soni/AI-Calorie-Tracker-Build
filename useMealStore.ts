@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy, where } from "firebase/firestore";
 import { db } from "./firebase/config";
 import * as Crypto from "expo-crypto";
+import { useUserProfileStore } from "./store/userProfileStore";
 
 export const toLocalDateKey = (iso: string): string => {
   const d = new Date(iso);
@@ -32,12 +33,12 @@ export interface UserGoals {
 }
 
 export interface UserProfile {
-  age: number;
-  gender: string;
-  height: number;
-  weight: number;
-  goal: string;
-  activityLevel: string;
+  age?: number;
+  gender?: string;
+  height?: number;
+  weight?: number;
+  goal?: string;
+  activityLevel?: string;
 }
 
 interface DailyTotals {
@@ -59,15 +60,40 @@ interface MealStore {
   // Actions
   setUserId: (userId: string | null) => void;
   clearForSignOut: () => void;
+  resetStore: () => void;
   addMeal: (meal: Omit<Meal, "id" | "loggedAt">) => Promise<void>;
   deleteMeal: (id: string) => Promise<void>;
   getDailyTotals: (date?: string) => DailyTotals;
   completeOnboarding: (profile: UserProfile, calculatedGoals: UserGoals) => void;
   resetOnboarding: () => void;
-  logWeight: (weight: number) => void;
+  logWeight: (weight: number) => Promise<void>;
   updateGoals: (goals: UserGoals) => void;
   syncMealsFromFirebase: (meals: Meal[]) => void;
 }
+
+const defaultGoals = {
+  calories: 2000,
+  protein: 150,
+  carbs: 200,
+  fat: 65,
+};
+
+let currentUserId: string | null = null;
+
+const customUserStorage = createJSONStorage(() => ({
+  getItem: (key) => {
+    const uid = currentUserId || 'anon';
+    return AsyncStorage.getItem(`${uid}:${key}`);
+  },
+  setItem: (key, value) => {
+    const uid = currentUserId || 'anon';
+    return AsyncStorage.setItem(`${uid}:${key}`, value);
+  },
+  removeItem: (key) => {
+    const uid = currentUserId || 'anon';
+    return AsyncStorage.removeItem(`${uid}:${key}`);
+  }
+}));
 
 export const selectDailyTotals = (date?: string) => (state: MealStore) => {
   const key = date ?? toLocalDateKey(new Date().toISOString());
@@ -88,167 +114,186 @@ export const useMealStore = create<MealStore>()(
   persist(
     (set, get) => ({
       meals: [],
-      goals: {
-        calories: 2000,
-        protein: 150,
-        carbs: 200,
-        fat: 65,
-      },
-      onboardingCompleted: false,
-      userProfile: null,
-      weightHistory: [],
-      userId: null,
+      goals: defaultGoals,
+    onboardingCompleted: false,
+    userProfile: null,
+    weightHistory: [],
+    userId: null,
 
-      setUserId: (userId) => {
-        set({ userId });
-      },
+    setUserId: (userId) => {
+      currentUserId = userId;
+      set({ userId });
+      useMealStore.persist.rehydrate();
+    },
 
-      clearForSignOut: () => {
-        set({
-          meals: [],
-          goals: { calories: 2000, protein: 150, carbs: 200, fat: 65 },
-          onboardingCompleted: false,
-          userProfile: null,
-          weightHistory: [],
-          userId: null,
-        });
-        AsyncStorage.removeItem("meal-tracker-store").catch((err) => {
-          console.error("Failed to clear AsyncStorage meal-tracker-store:", err);
-        });
-      },
+    clearForSignOut: () => {
+      currentUserId = null;
+      set({
+        meals: [],
+        goals: { calories: 2000, protein: 150, carbs: 200, fat: 65 },
+        onboardingCompleted: false,
+        userProfile: null,
+        weightHistory: [],
+        userId: null,
+      });
+      AsyncStorage.removeItem("anon:meal-tracker-store").catch(() => {});
+    },
 
-      addMeal: async (meal) => {
-        // Sanity check to prevent AI hallucinations or invalid manual logs from breaking dashboard
-        if (
-          meal.calories < 0 || meal.calories > 5000 ||
-          meal.protein < 0 || meal.protein > 500 ||
-          meal.carbs < 0 || meal.carbs > 500 ||
-          meal.fat < 0 || meal.fat > 300
-        ) {
-          throw new Error("Invalid nutrition values detected. Please verify inputs.");
+    addMeal: async (meal) => {
+      // Sanity check to prevent AI hallucinations or invalid manual logs from breaking dashboard
+      if (!meal.name || meal.name.trim().length === 0 || meal.name.length > 100) {
+        throw new Error("Meal name must be between 1 and 100 characters.");
+      }
+      if (
+        meal.calories < 0 || meal.calories > 5000 ||
+        meal.protein < 0 || meal.protein > 500 ||
+        meal.carbs < 0 || meal.carbs > 500 ||
+        meal.fat < 0 || meal.fat > 300
+      ) {
+        throw new Error("Invalid nutrition values detected. Please verify inputs.");
+      }
+
+      const uid = get().userId;
+      const newMeal: Meal = {
+        ...meal,
+        id: Crypto.randomUUID(),
+        loggedAt: new Date().toISOString(),
+      };
+
+      // Optimistic update — show immediately in UI
+      set((state) => ({ meals: [newMeal, ...state.meals] }));
+
+      if (uid) {
+        try {
+          // Save to Firebase Firestore
+          const mealRef = doc(db, "users", uid, "meals", newMeal.id);
+          await setDoc(mealRef, newMeal);
+        } catch (e) {
+          console.error("Error writing meal to Firestore:", e);
+          // Rollback on failure
+          set((state) => ({
+            meals: state.meals.filter((m) => m.id !== newMeal.id),
+          }));
+          throw e;
         }
+      }
+    },
 
-        const uid = get().userId;
-        const newMeal: Meal = {
-          ...meal,
-          id: Crypto.randomUUID(),
-          loggedAt: new Date().toISOString(),
-        };
-
-        // Optimistic update — show immediately in UI
-        set((state) => ({ meals: [newMeal, ...state.meals] }));
-
-        if (uid) {
-          try {
-            // Save to Firebase Firestore
-            const mealRef = doc(db, "users", uid, "meals", newMeal.id);
-            await setDoc(mealRef, newMeal);
-          } catch (e) {
-            console.error("Error writing meal to Firestore:", e);
-            // Rollback on failure
-            set((state) => ({
-              meals: state.meals.filter((m) => m.id !== newMeal.id),
-            }));
-            throw e;
-          }
-        }
-      },
-
-      deleteMeal: async (id) => {
-        const uid = get().userId;
-        if (uid) {
-          try {
-            // Delete from Firebase Firestore
-            const mealRef = doc(db, "users", uid, "meals", id);
-            await deleteDoc(mealRef);
-            // Firestore listener will sync the deletion automatically
-          } catch (e) {
-            console.error("Error deleting meal from Firestore:", e);
-            // Fallback to local update on error
-            set((state) => ({
-              meals: state.meals.filter((m) => m.id !== id),
-            }));
-          }
-        } else {
-          // Local fallback
+    deleteMeal: async (id) => {
+      const uid = get().userId;
+      if (uid) {
+        try {
+          // Delete from Firebase Firestore
+          const mealRef = doc(db, "users", uid, "meals", id);
+          await deleteDoc(mealRef);
+          // Firestore listener will sync the deletion automatically
+        } catch (e) {
+          console.error("Error deleting meal from Firestore:", e);
+          // Fallback to local update on error
           set((state) => ({
             meals: state.meals.filter((m) => m.id !== id),
           }));
         }
-      },
+      } else {
+        // Local fallback
+        set((state) => ({
+          meals: state.meals.filter((m) => m.id !== id),
+        }));
+      }
+    },
 
-      getDailyTotals: (date) => {
-        return selectDailyTotals(date)(get());
-      },
+    getDailyTotals: (date) => {
+      return selectDailyTotals(date)(get());
+    },
 
-      completeOnboarding: (profile, calculatedGoals) =>
-        set({
-          userProfile: profile,
-          goals: calculatedGoals,
-          onboardingCompleted: true,
-          weightHistory: [{ date: toLocalDateKey(new Date().toISOString()), weight: profile.weight }],
-        }),
-
-      resetOnboarding: () =>
-        set({
-          userProfile: null,
-          onboardingCompleted: false,
-          meals: [],
-          weightHistory: [],
-          goals: {
-            calories: 2000,
-            protein: 150,
-            carbs: 200,
-            fat: 65,
-          },
-        }),
-
-      logWeight: (weight) =>
-        set((state) => {
-          const date = toLocalDateKey(new Date().toISOString());
-          const filtered = state.weightHistory.filter((w) => w.date !== date);
-          const updatedProfile = state.userProfile
-            ? { ...state.userProfile, weight }
-            : null;
-          return {
-            weightHistory: [...filtered, { date, weight }].sort(
-              (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-            ),
-            userProfile: updatedProfile,
-          };
-        }),
-
-      updateGoals: (goals) =>
-        set({ goals }),
-
-      syncMealsFromFirebase: (meals) => {
-        set({ meals });
-      },
-    }),
-    {
-      name: "meal-tracker-store",
-      storage: createJSONStorage(() => AsyncStorage),
-      partialize: (s) => ({
-        // DO NOT persist meals or onboardingCompleted
-        goals: s.goals,
-        userProfile: s.userProfile,
-        weightHistory: s.weightHistory,
+    completeOnboarding: (profile, calculatedGoals) =>
+      set({
+        userProfile: profile,
+        goals: calculatedGoals,
+        onboardingCompleted: true,
+        weightHistory: [{ date: toLocalDateKey(new Date().toISOString()), weight: profile.weight || 0 }],
       }),
-    }
-  )
+
+    resetOnboarding: () =>
+      set({
+        userProfile: null,
+        onboardingCompleted: false,
+        meals: [],
+        weightHistory: [],
+        goals: {
+          calories: 2000,
+          protein: 150,
+          carbs: 200,
+          fat: 65,
+        },
+      }),
+
+    logWeight: async (weight) => {
+      const uid = get().userId;
+      const date = toLocalDateKey(new Date().toISOString());
+      const filtered = get().weightHistory.filter((w) => w.date !== date);
+      const newHistory = [...filtered, { date, weight }].sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      );
+      const updatedProfile = get().userProfile
+        ? { ...get().userProfile, weight }
+        : null;
+
+      set({
+        weightHistory: newHistory,
+        userProfile: updatedProfile,
+      });
+
+      if (uid) {
+        try {
+          await useUserProfileStore.getState().updateProfile(uid, {
+            weight,
+            weightHistory: newHistory,
+          });
+        } catch (e) {
+          console.error("Error saving weight history to Firestore:", e);
+        }
+      }
+    },
+    resetStore: () => set({
+      meals: [],
+      goals: defaultGoals,
+      onboardingCompleted: false,
+      userProfile: null,
+      weightHistory: [],
+      userId: null,
+    }),
+
+    updateGoals: (goals) =>
+      set({ goals }),
+
+    syncMealsFromFirebase: (meals) => {
+      set({ meals });
+    },
+  }),
+  {
+    name: "meal-tracker-store",
+    storage: customUserStorage,
+    partialize: (s) => ({
+      goals: s.goals,
+      userProfile: s.userProfile,
+      weightHistory: s.weightHistory,
+    }),
+  }
+)
 );
 
 // Listener setup for Firestore meals sync
 export function subscribeToUserMeals(userId: string, onUpdate: (meals: Meal[]) => void) {
   const mealsCol = collection(db, "users", userId, "meals");
   
-  // Only fetch last 90 days
-  const ninetyDaysAgo = new Date();
-  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+  // Only fetch last 30 days
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
   const q = query(
     mealsCol,
-    where("loggedAt", ">=", ninetyDaysAgo.toISOString()),
+    where("loggedAt", ">=", thirtyDaysAgo.toISOString()),
     orderBy("loggedAt", "desc")
   );
   

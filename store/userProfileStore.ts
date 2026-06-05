@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { doc, getDoc, onSnapshot, updateDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { User } from 'firebase/auth';
+import { useMealStore } from '../useMealStore';
 
 export interface UserProfile {
   id: string;
@@ -20,6 +21,7 @@ export interface UserProfile {
   carbTarget?: number;
   fatTarget?: number;
   onboardingCompleted: boolean;
+  weightHistory?: Array<{ date: string; weight: number }>;
   createdAt?: any;
   updatedAt?: any;
 }
@@ -88,6 +90,27 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
             profile: profileData,
             loading: false 
           });
+          
+          // Sync to useMealStore
+          useMealStore.setState({
+            userProfile: {
+              age: profileData.age || 0,
+              gender: profileData.gender || '',
+              height: profileData.height || 0,
+              weight: profileData.weight || 0,
+              goal: profileData.goal || '',
+              activityLevel: profileData.activityLevel || '',
+            },
+            goals: {
+              calories: profileData.calorieTarget || 2000,
+              protein: profileData.proteinTarget || 150,
+              carbs: profileData.carbTarget || 200,
+              fat: profileData.fatTarget || 65,
+            },
+            onboardingCompleted: profileData.onboardingCompleted,
+            weightHistory: profileData.weightHistory || [],
+          });
+
           console.log("PROFILE STATE: Profile loaded successfully, onboardingCompleted:", profileData.onboardingCompleted);
         } else {
           set({ 

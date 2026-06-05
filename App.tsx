@@ -67,7 +67,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PressScale } from "./components/PressScale";
 import { colors, radius, shadow } from "./components/DesignSystem";
 
-function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+const MemoizedCustomTabBar = React.memo(function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const rootNav = navigation.getParent<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
 
@@ -127,13 +127,13 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
       </PressScale>
     </View>
   );
-}
+});
 
 function TabNavigator() {
   return (
     <Tab.Navigator
       id="TabNavigator"
-      tabBar={(props) => <CustomTabBar {...props} />}
+      tabBar={MemoizedCustomTabBar}
       screenOptions={{ headerShown: false }}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
@@ -162,23 +162,21 @@ function AppNavigator() {
       return () => {
         unsubscribeProfile();
         unsubscribeMeals();
-        useMealStore.getState().clearForSignOut();
+        useMealStore.getState().resetStore();
+        useMealStore.getState().setUserId(null);
         useUserProfileStore.getState().clearProfile();
       };
     } else {
-      useMealStore.getState().clearForSignOut();
+      // Full wipe on logout — prevents cross-account bleed
+      useMealStore.getState().resetStore();
+      useMealStore.getState().setUserId(null);
       useUserProfileStore.getState().clearProfile();
     }
   }, [user?.uid]);
 
   const onboardingCompleted = profile?.onboardingCompleted || false;
 
-  if (__DEV__) {
-    console.log("[Auth]", user ? `uid=${user.uid}` : "signed out",
-      "| authLoading:", authLoading,
-      "| profileLoading:", loadingProfile,
-      "| onboarded:", onboardingCompleted);
-  }
+  if (__DEV__) console.log("[Auth]", user ? "logged in" : "logged out");
 
   if (authLoading || (user && loadingProfile)) {
     return <SplashScreen navigation={null as any} />;
@@ -197,11 +195,11 @@ function AppNavigator() {
       ) : !onboardingCompleted ? (
         // Onboarding Stack
         <>
-          <Stack.Screen name="OnboardingStep1" component={OnboardingStep1} options={{ animation: "slide_from_right" }} />
-          <Stack.Screen name="OnboardingStep2" component={OnboardingStep2} options={{ animation: "slide_from_right" }} />
-          <Stack.Screen name="OnboardingStep3" component={OnboardingStep3} options={{ animation: "slide_from_right" }} />
-          <Stack.Screen name="OnboardingStep4" component={OnboardingStep4} options={{ animation: "slide_from_right" }} />
-          <Stack.Screen name="OnboardingStep5" component={OnboardingStep5} options={{ animation: "slide_from_right" }} />
+          <Stack.Screen name="OnboardingStep1" component={OnboardingStep1} options={{ animation: "slide_from_right", gestureEnabled: false }} />
+          <Stack.Screen name="OnboardingStep2" component={OnboardingStep2} options={{ animation: "slide_from_right", gestureEnabled: false }} />
+          <Stack.Screen name="OnboardingStep3" component={OnboardingStep3} options={{ animation: "slide_from_right", gestureEnabled: false }} />
+          <Stack.Screen name="OnboardingStep4" component={OnboardingStep4} options={{ animation: "slide_from_right", gestureEnabled: false }} />
+          <Stack.Screen name="OnboardingStep5" component={OnboardingStep5} options={{ animation: "slide_from_right", gestureEnabled: false }} />
           <Stack.Screen name="Tabs" component={TabNavigator} options={{ animation: "none" }} />
         </>
       ) : (

@@ -172,7 +172,7 @@ export default function FoodAnalysisScreen() {
     });
   };
 
-  const handleLogMeal = (d: any) => {
+  const handleLogMeal = async (d: any) => {
     setIsLogged(true);
     const foodsList = Array.isArray(d.foods) ? d.foods : [];
     
@@ -182,16 +182,20 @@ export default function FoodAnalysisScreen() {
     const carbs = Math.round((Number(d.totalCarbs) || 0) * servingSize);
     const fat = Math.round((Number(d.totalFat) || 0) * servingSize);
 
-    addMeal({
-      name,
-      calories,
-      protein,
-      carbs,
-      fat,
-      category,
-    });
-
-    showToastNotification();
+    try {
+      await addMeal({
+        name,
+        calories,
+        protein,
+        carbs,
+        fat,
+        category,
+      });
+      showToastNotification();
+    } catch (e) {
+      setIsLogged(false);
+      Alert.alert("Log Failed", "Could not log meal to database. Please check your connection.");
+    }
   };
 
   const scanY = scanLineAnim.interpolate({ inputRange: [0, 1], outputRange: [-120, 120] });

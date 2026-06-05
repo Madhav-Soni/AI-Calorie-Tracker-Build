@@ -11,28 +11,25 @@
       "resizeMode": "contain",
       "backgroundColor": "#080813"
     },
-    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.yourcompany.aicalorietracker",
-      "buildNumber": "1"
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Used to scan your food for calorie analysis",
+        "NSPhotoLibraryUsageDescription": "Used to select food photos for analysis"
+      }
     },
     "android": {
+      "package": "com.yourcompany.aicalorietracker",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#080813"
       },
-      "package": "com.yourcompany.aicalorietracker",
-      "versionCode": 1,
-      "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.READ_MEDIA_IMAGES"
-      ]
+      "permissions": ["CAMERA", "READ_MEDIA_IMAGES"]
     },
-    "plugins": [
-      ["expo-camera", { "cameraPermission": "Allow AI Calorie Tracker to access your camera to scan food." }],
-      ["expo-image-picker", { "photosPermission": "Allow AI Calorie Tracker to access your photos to log meals." }]
-    ],
+    "plugins": ["expo-camera"],
     "extra": {
       "eas": { "projectId": "YOUR_EAS_PROJECT_ID" }
     }
