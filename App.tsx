@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Platform } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -39,7 +39,6 @@ export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
   ForgotPassword: undefined;
-  Onboarding: undefined;
   OnboardingStep1: { userData?: any };
   OnboardingStep2: { userData?: any };
   OnboardingStep3: { userData?: any };
@@ -99,8 +98,12 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     );
   };
 
+  const bottomOffset = Platform.OS === "android"
+    ? Math.max(insets.bottom, 16)
+    : Math.max(insets.bottom, 12);
+
   return (
-    <View style={[styles.tabBarContainer, { bottom: Math.max(insets.bottom, 12) }]}>
+    <View style={[styles.tabBarContainer, { bottom: bottomOffset }]}>
       <BlurView tint="dark" intensity={42} style={StyleSheet.absoluteFill} />
       <View style={styles.tabBar}>
         {renderTab(0)}
@@ -115,7 +118,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         style={styles.fab}
         onPress={() => rootNav?.navigate("Camera")}
       >
-        <Text style={styles.fabIcon}>⌁</Text>
+        <Text style={styles.fabIcon}>＋</Text>
       </PressScale>
     </View>
   );
@@ -144,6 +147,7 @@ function AppNavigator() {
 
   React.useEffect(() => {
     if (user) {
+      useMealStore.getState().clearForSignOut();
       useMealStore.getState().setUserId(user.uid);
       const unsubscribeProfile = subscribeToProfile(user.uid);
       const unsubscribeMeals = subscribeToUserMeals(user.uid, (meals) => {
@@ -152,49 +156,51 @@ function AppNavigator() {
       return () => {
         unsubscribeProfile();
         unsubscribeMeals();
+        useMealStore.getState().clearForSignOut();
       };
     } else {
-      useMealStore.getState().setUserId(null);
+      useMealStore.getState().clearForSignOut();
     }
-  }, [user]);
+  }, [user?.uid]);
 
   const onboardingCompleted = profile?.onboardingCompleted || false;
 
-  console.log("AUTH STATE:", user ? `UID: ${user.uid}` : "Logged out");
-  console.log("AUTH LOADING:", authLoading);
-  console.log("PROFILE LOADING:", loadingProfile);
-  console.log("ONBOARDING COMPLETE:", onboardingCompleted);
+  if (__DEV__) {
+    console.log("[Auth]", user ? `uid=${user.uid}` : "signed out",
+      "| authLoading:", authLoading,
+      "| profileLoading:", loadingProfile,
+      "| onboarded:", onboardingCompleted);
+  }
 
   if (authLoading || (user && loadingProfile)) {
     return <SplashScreen navigation={null as any} />;
   }
 
   return (
-    <Stack.Navigator id="StackNavigator" screenOptions={{ headerShown: false, animation: "slide_from_bottom" }}>
+    <Stack.Navigator id="StackNavigator" screenOptions={{ headerShown: false }}>
       {!user ? (
         // Auth Stack
         <>
-          <Stack.Screen name="Welcome" component={WelcomeScreen} />
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Register" component={RegisterScreen} />
-          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+          <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ animation: "fade" }} />
+          <Stack.Screen name="Login" component={LoginScreen} options={{ animation: "slide_from_right" }} />
+          <Stack.Screen name="Register" component={RegisterScreen} options={{ animation: "slide_from_right" }} />
+          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ animation: "slide_from_right" }} />
         </>
       ) : !onboardingCompleted ? (
         // Onboarding Stack
         <>
-          <Stack.Screen name="Onboarding" component={OnboardingStep1} />
-          <Stack.Screen name="OnboardingStep1" component={OnboardingStep1} />
-          <Stack.Screen name="OnboardingStep2" component={OnboardingStep2} />
-          <Stack.Screen name="OnboardingStep3" component={OnboardingStep3} />
-          <Stack.Screen name="OnboardingStep4" component={OnboardingStep4} />
-          <Stack.Screen name="OnboardingStep5" component={OnboardingStep5} />
+          <Stack.Screen name="OnboardingStep1" component={OnboardingStep1} options={{ animation: "slide_from_right" }} />
+          <Stack.Screen name="OnboardingStep2" component={OnboardingStep2} options={{ animation: "slide_from_right" }} />
+          <Stack.Screen name="OnboardingStep3" component={OnboardingStep3} options={{ animation: "slide_from_right" }} />
+          <Stack.Screen name="OnboardingStep4" component={OnboardingStep4} options={{ animation: "slide_from_right" }} />
+          <Stack.Screen name="OnboardingStep5" component={OnboardingStep5} options={{ animation: "slide_from_right" }} />
           <Stack.Screen name="Tabs" component={TabNavigator} options={{ animation: "none" }} />
         </>
       ) : (
         // Main App Stack
         <>
           <Stack.Screen name="Tabs" component={TabNavigator} options={{ animation: "none" }} />
-          <Stack.Screen name="Camera" component={CameraScreen} />
+          <Stack.Screen name="Camera" component={CameraScreen} options={{ animation: "slide_from_bottom" }} />
           <Stack.Screen
             name="FoodAnalysis"
             component={FoodAnalysisScreen}

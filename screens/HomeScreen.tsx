@@ -15,7 +15,7 @@ import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../App";
-import { useMealStore } from "../useMealStore";
+import { useMealStore, selectDailyTotals } from "../useMealStore";
 import { useUserProfileStore } from "../store/userProfileStore";
 import { useAuth } from "../contexts/AuthContext";
 import { getCoachRecommendation } from "../NutritionCoach";
@@ -140,10 +140,9 @@ export default function HomeScreen() {
   const profile = useUserProfileStore((s) => s.profile);
   const meals = useMealStore((s) => s.meals);
   const deleteMeal = useMealStore((s) => s.deleteMeal);
-  const getDailyTotals = useMealStore((s) => s.getDailyTotals);
   const weightHistory = useMealStore((s) => s.weightHistory);
 
-  const totals = getDailyTotals();
+  const totals = useMealStore(selectDailyTotals());
 
   // Streak derived directly from active meals dates log (or fallback to simple math)
   const streak = weightHistory.length > 0 ? Math.min(30, weightHistory.length) : 0;

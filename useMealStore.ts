@@ -49,6 +49,7 @@ interface MealStore {
   
   // Actions
   setUserId: (userId: string | null) => void;
+  clearForSignOut: () => void;
   addMeal: (meal: Omit<Meal, "id" | "loggedAt">) => Promise<void>;
   deleteMeal: (id: string) => Promise<void>;
   getDailyTotals: (date?: string) => DailyTotals;
@@ -60,6 +61,21 @@ interface MealStore {
 }
 
 const toDateKey = (iso: string) => iso.slice(0, 10);
+
+export const selectDailyTotals = (date?: string) => (state: MealStore) => {
+  const key = date ?? toDateKey(new Date().toISOString());
+  const daily = state.meals.filter((m) => toDateKey(m.loggedAt) === key);
+  return daily.reduce(
+    (acc, m) => ({
+      calories: acc.calories + (m.calories || 0),
+      protein: acc.protein + (m.protein || 0),
+      carbs: acc.carbs + (m.carbs || 0),
+      fat: acc.fat + (m.fat || 0),
+      mealCount: acc.mealCount + 1,
+    }),
+    { calories: 0, protein: 0, carbs: 0, fat: 0, mealCount: 0 }
+  );
+};
 
 export const useMealStore = create<MealStore>()(
   persist(
@@ -80,6 +96,17 @@ export const useMealStore = create<MealStore>()(
         set({ userId });
       },
 
+      clearForSignOut: () => {
+        set({
+          meals: [],
+          goals: { calories: 2000, protein: 150, carbs: 200, fat: 65 },
+          onboardingCompleted: false,
+          userProfile: null,
+          weightHistory: [],
+          userId: null,
+        });
+      },
+
       addMeal: async (meal) => {
         const uid = get().userId;
         const newMeal: Meal = {
@@ -88,6 +115,9 @@ export const useMealStore = create<MealStore>()(
           loggedAt: new Date().toISOString(),
         };
 
+        // Optimistic update — show immediately in UI
+        set((state) => ({ meals: [newMeal, ...state.meals] }));
+
         if (uid) {
           try {
             // Save to Firebase Firestore
@@ -95,12 +125,12 @@ export const useMealStore = create<MealStore>()(
             await setDoc(mealRef, newMeal);
           } catch (e) {
             console.error("Error writing meal to Firestore:", e);
+            // Rollback on failure
+            set((state) => ({
+              meals: state.meals.filter((m) => m.id !== newMeal.id),
+            }));
+            throw e;
           }
-        } else {
-          // Local fallback
-          set((state) => ({
-            meals: [...state.meals, newMeal],
-          }));
         }
       },
 
@@ -128,18 +158,7 @@ export const useMealStore = create<MealStore>()(
       },
 
       getDailyTotals: (date) => {
-        const key = date ?? toDateKey(new Date().toISOString());
-        const daily = get().meals.filter((m) => toDateKey(m.loggedAt) === key);
-        return daily.reduce(
-          (acc, m) => ({
-            calories: acc.calories + m.calories,
-            protein: acc.protein + m.protein,
-            carbs: acc.carbs + m.carbs,
-            fat: acc.fat + m.fat,
-            mealCount: acc.mealCount + 1,
-          }),
-          { calories: 0, protein: 0, carbs: 0, fat: 0, mealCount: 0 }
-        );
+        return selectDailyTotals(date)(get());
       },
 
       completeOnboarding: (profile, calculatedGoals) =>
@@ -190,9 +209,8 @@ export const useMealStore = create<MealStore>()(
       name: "meal-tracker-store",
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (s) => ({
-        meals: s.meals,
+        // DO NOT persist meals or onboardingCompleted
         goals: s.goals,
-        onboardingCompleted: s.onboardingCompleted,
         userProfile: s.userProfile,
         weightHistory: s.weightHistory,
       }),
