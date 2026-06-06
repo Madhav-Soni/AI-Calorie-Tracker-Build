@@ -118,13 +118,18 @@ export default function FoodAnalysisScreen() {
 
   const runAnalysis = async (uri: string) => {
     try {
-      const res = await analyze(uri);
-      if (!res) {
-        Alert.alert("Error", "Could not analyze image. Please try again.");
-      }
-    } catch (error) {
+      await analyze(uri);
+    } catch (error: any) {
       if (__DEV__) console.error("[FRONTEND ERROR DURING ANALYSIS]", error);
-      Alert.alert("Error", "Could not analyze image. Please try again.");
+      const msg = error?.message || "Could not analyze image. Please try again.";
+      if (msg.includes("limit reached")) {
+        Alert.alert(
+          "Scan Limit Reached",
+          "Our AI has hit its daily limit. Scans reset at midnight UTC. You can still log meals manually."
+        );
+      } else {
+        Alert.alert("Error", msg);
+      }
     }
   };
 

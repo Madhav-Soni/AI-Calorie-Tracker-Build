@@ -42,7 +42,7 @@ export function useAnalyzeFood(): UseAnalyzeFoodReturn {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unexpected error. Please try again.";
       set({ status: "error", data: null, error: message, progress: 0 });
-      return null;
+      throw err;
     }
   }, []);
 

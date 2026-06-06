@@ -120,9 +120,15 @@ async function callCloudflare(
     body: JSON.stringify(bodyPayload),
   });
 
+  if (response.status === 429) {
+    throw new Error("RATE_LIMITED");
+  }
+  if (response.status === 404) {
+    throw new Error("AI model unavailable. The vision model may have been updated.");
+  }
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Cloudflare Workers AI Error: ${errorText}`);
+    throw new Error(`Cloudflare Workers AI Error ${response.status}: ${errorText}`);
   }
 
   return response.json();
@@ -320,8 +326,21 @@ router.post("/analyze-food", async (req: Request, res: Response): Promise<void> 
 
     res.status(200).json(payload);
 
-  } catch (error) {
+  } catch (error: any) {
     devError("[BACKEND ERROR]", error);
+    if (error?.message === "RATE_LIMITED") {
+      res.status(429).json({
+        error: "Daily AI scan limit reached. Please try again after midnight UTC.",
+        retryAfter: "midnight UTC"
+      });
+      return;
+    }
+    if (error?.message && error.message.includes("AI model unavailable")) {
+      res.status(503).json({
+        error: "AI model unavailable. The vision model may have been updated.",
+      });
+      return;
+    }
     res.status(200).json(fallbackPayload);
   }
 });
