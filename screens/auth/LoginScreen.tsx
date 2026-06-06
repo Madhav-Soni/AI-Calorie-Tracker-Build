@@ -58,7 +58,11 @@ export default function LoginScreen({ navigation }: any) {
   useEffect(() => {
     if (googleResponse?.type === "success") {
       const { id_token, access_token } = googleResponse.params;
-      handleGoogleAuth(id_token || "", access_token || "");
+      if (!id_token) {
+        setGeneralError("Failed to retrieve authentication token from Google.");
+        return;
+      }
+      handleGoogleAuth(id_token, access_token || "");
     }
   }, [googleResponse]);
 

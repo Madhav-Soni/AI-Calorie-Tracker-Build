@@ -15,7 +15,7 @@
       "autoIncrement": true,
       "env": {
         "APP_ENV": "production",
-        "EXPO_PUBLIC_API_BASE": "https://your-actual-backend-url.com"
+        "EXPO_PUBLIC_API_BASE": "https://YOUR-REAL-BACKEND.railway.app"
       }
     }
   },

@@ -26,7 +26,11 @@ export default function WelcomeScreen({ navigation }: any) {
   useEffect(() => {
     if (googleResponse?.type === "success") {
       const { id_token, access_token } = googleResponse.params;
-      handleGoogleAuth(id_token || "", access_token || "");
+      if (!id_token) {
+        Alert.alert("Google Sign-In Failed", "Failed to retrieve authentication token from Google.");
+        return;
+      }
+      handleGoogleAuth(id_token, access_token || "");
     }
   }, [googleResponse]);
 
