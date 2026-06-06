@@ -187,24 +187,15 @@ export const useMealStore = create<MealStore>()(
 
     deleteMeal: async (id) => {
       const uid = get().userId;
+      // Optimistic remove
+      set((state) => ({ meals: state.meals.filter((m) => m.id !== id) }));
+
       if (uid) {
         try {
-          // Delete from Firebase Firestore
-          const mealRef = doc(db, "users", uid, "meals", id);
-          await deleteDoc(mealRef);
-          // Firestore listener will sync the deletion automatically
+          await deleteDoc(doc(db, "users", uid, "meals", id));
         } catch (e) {
-          console.error("Error deleting meal from Firestore:", e);
-          // Fallback to local update on error
-          set((state) => ({
-            meals: state.meals.filter((m) => m.id !== id),
-          }));
+          if (__DEV__) console.error("[deleteMeal] failed:", e);
         }
-      } else {
-        // Local fallback
-        set((state) => ({
-          meals: state.meals.filter((m) => m.id !== id),
-        }));
       }
     },
 
@@ -234,11 +225,11 @@ export const useMealStore = create<MealStore>()(
         },
       }),
 
-    logWeight: async (weight) => {
+    logWeight: async (weight: number) => {
       const uid = get().userId;
       const date = toLocalDateKey(new Date().toISOString());
-      const filtered = get().weightHistory.filter((w) => w.date !== date);
-      const newHistory = [...filtered, { date, weight }].sort(
+      const existing = get().weightHistory.filter((w) => w.date !== date);
+      const newHistory = [...existing, { date, weight }].sort(
         (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
       );
       const updatedProfile = get().userProfile
@@ -252,12 +243,13 @@ export const useMealStore = create<MealStore>()(
 
       if (uid) {
         try {
-          await useUserProfileStore.getState().updateProfile(uid, {
-            weight,
-            weightHistory: newHistory,
-          });
+          await setDoc(
+            doc(db, "users", uid),
+            { weightHistory: newHistory, weight },
+            { merge: true }
+          );
         } catch (e) {
-          console.error("Error saving weight history to Firestore:", e);
+          if (__DEV__) console.error("[logWeight] Firestore write failed:", e);
         }
       }
     },

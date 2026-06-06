@@ -1,24 +1,26 @@
 import React, { useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  StatusBar,
-  Keyboard,
-  Dimensions,
+   View,
+   Text,
+   StyleSheet,
+   TextInput,
+   TouchableOpacity,
+   ScrollView,
+   StatusBar,
+   Keyboard,
+   Dimensions,
+   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, radius, spacing, typography, ui } from "../components/DesignSystem";
 import { useMealStore } from "../useMealStore";
+import { useUserProfileStore } from "../store/userProfileStore";
 import { PressScale } from "../components/PressScale";
 
 const { width: W } = Dimensions.get("window");
 
 export default function ProgressScreen() {
-  const userProfile = useMealStore((s) => s.userProfile);
+  const userProfile = useUserProfileStore((s) => s.profile);
   const weightHistory = useMealStore((s) => s.weightHistory);
   const logWeight = useMealStore((s) => s.logWeight);
 
@@ -27,7 +29,7 @@ export default function ProgressScreen() {
   const handleLogWeight = () => {
     const wVal = parseFloat(inputWeight);
     if (isNaN(wVal) || wVal < 20 || wVal > 350) {
-      alert("Please enter a valid weight in kg.");
+      Alert.alert("Invalid Input", "Please enter a valid weight in kg.");
       return;
     }
     logWeight(wVal);

@@ -1,3 +1,5 @@
+declare const __DEV__: boolean;
+
 import 'react-native';
 
 declare module 'react-native' {

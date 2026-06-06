@@ -4,11 +4,25 @@ dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 import express from "express";
 import cors from "cors";
+import rateLimit from "express-rate-limit";
 import analyzeFood from "./routes/analyzeFood";
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: process.env.NODE_ENV === "production"
+    ? false // mobile apps don't send Origin headers — block all browser/curl requests
+    : "*",
+  methods: ["POST", "GET"],
+}));
+
+const limiter = rateLimit({
+  windowMs: 60 * 1000,      // 1 minute window
+  max: 10,                   // max 10 AI scans per IP per minute
+  message: { error: "Too many requests. Please wait before scanning again." },
+});
+
+app.use("/analyze-food", limiter);
 app.use(express.json({ limit: "20mb" }));
 app.use(analyzeFood);
 

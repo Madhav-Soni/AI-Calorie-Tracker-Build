@@ -27,19 +27,39 @@ export default function OnboardingStep1({ navigation, route }: any) {
   }));
 
   const handleNext = () => {
-    if (!name || !age || !gender || !height || !weight) {
-      Alert.alert("Missing Information", "Please fill in all the details before proceeding.");
+    const ageNum = parseInt(age);
+    const heightNum = parseInt(height);
+    const weightNum = parseInt(weight);
+
+    if (!name.trim()) {
+      Alert.alert("Missing Info", "Please enter your name.");
+      return;
+    }
+    if (isNaN(ageNum) || ageNum < 10 || ageNum > 120) {
+      Alert.alert("Invalid Age", "Please enter a valid age between 10 and 120.");
+      return;
+    }
+    if (!gender) {
+      Alert.alert("Missing Info", "Please select your biological sex.");
+      return;
+    }
+    if (isNaN(heightNum) || heightNum < 100 || heightNum > 250) {
+      Alert.alert("Invalid Height", "Please enter a valid height in cm (100–250).");
+      return;
+    }
+    if (isNaN(weightNum) || weightNum < 20 || weightNum > 300) {
+      Alert.alert("Invalid Weight", "Please enter a valid weight in kg (20–300).");
       return;
     }
 
     navigation.navigate('OnboardingStep2', {
       userData: {
         ...userData,
-        name,
-        age: parseInt(age),
+        name: name.trim(),
+        age: ageNum,
         gender,
-        height: parseInt(height),
-        weight: parseInt(weight),
+        height: heightNum,
+        weight: weightNum,
       },
     });
   };
