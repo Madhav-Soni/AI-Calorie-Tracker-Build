@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,17 +11,24 @@ import {
   KeyboardAvoidingView,
   Platform,
   Dimensions,
+  Alert,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from "react-native-reanimated";
 import { PressScale } from "../../components/PressScale";
 import { colors, radius, shadow, spacing, typography, ui } from "../../components/DesignSystem";
 import { useAuth } from "../../contexts/AuthContext";
+import * as WebBrowser from "expo-web-browser";
+import * as Google from "expo-auth-session/providers/google";
+import { Ionicons } from "@expo/vector-icons";
+
+WebBrowser.maybeCompleteAuthSession();
 
 const { width: W } = Dimensions.get("window");
 
 export default function LoginScreen({ navigation }: any) {
-  const { login } = useAuth();
+  const { login, loginWithGoogle, linkGoogleAccount } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,6 +37,70 @@ export default function LoginScreen({ navigation }: any) {
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [generalError, setGeneralError] = useState("");
+
+  // Google Sign-In & Linking States
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [linkModalVisible, setLinkModalVisible] = useState(false);
+  const [linkEmail, setLinkEmail] = useState("");
+  const [linkPassword, setLinkPassword] = useState("");
+  const [linkingLoading, setLinkingLoading] = useState(false);
+  const [tempGoogleIdToken, setTempGoogleIdToken] = useState("");
+  const [tempGoogleAccessToken, setTempGoogleAccessToken] = useState("");
+
+  const [googleRequest, googleResponse, promptAsync] = Google.useAuthRequest({
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS,
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID,
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB,
+  });
+
+  useEffect(() => {
+    if (googleResponse?.type === "success") {
+      const { id_token, access_token } = googleResponse.params;
+      handleGoogleAuth(id_token || "", access_token || "");
+    }
+  }, [googleResponse]);
+
+  const handleGoogleAuth = async (idToken: string, accessToken?: string) => {
+    setGoogleLoading(true);
+    setGeneralError("");
+    try {
+      await loginWithGoogle(idToken, accessToken);
+    } catch (error: any) {
+      if (error?.code === "auth/account-exists-with-different-credential") {
+        const emailAddress = error?.customData?.email || "";
+        setLinkEmail(emailAddress);
+        setTempGoogleIdToken(idToken);
+        setTempGoogleAccessToken(accessToken || "");
+        setLinkModalVisible(true);
+      } else {
+        const code = error?.code ?? "";
+        const msg =
+          code === "auth/network-request-failed"
+            ? "No internet connection. Please try again."
+            : error.message || "Google authentication failed.";
+        setGeneralError(msg);
+      }
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleLinkAccount = async () => {
+    if (!linkPassword) {
+      Alert.alert("Password Required", "Please enter the password for your existing account.");
+      return;
+    }
+    setLinkingLoading(true);
+    try {
+      await linkGoogleAccount(linkEmail, linkPassword, tempGoogleIdToken, tempGoogleAccessToken);
+      setLinkModalVisible(false);
+      setLinkPassword("");
+    } catch (error: any) {
+      Alert.alert("Linking Failed", error.message || "Incorrect password or network error.");
+    } finally {
+      setLinkingLoading(false);
+    }
+  };
 
   const fadeAnim = useSharedValue(0);
   const slideAnim = useSharedValue(20);
@@ -176,6 +247,92 @@ export default function LoginScreen({ navigation }: any) {
                 <Text style={styles.primaryButtonText}>Sign In</Text>
               )}
             </PressScale>
+
+            {/* Divider */}
+            <View style={styles.dividerContainer}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>OR</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Google Button */}
+            <PressScale
+              style={[
+                styles.googleButton,
+                (googleLoading || !googleRequest) && styles.disabledButton
+              ]}
+              onPress={() => {
+                setGoogleLoading(true);
+                promptAsync().catch((err) => {
+                  if (__DEV__) console.error("Google Auth Prompt failed:", err);
+                  setGoogleLoading(false);
+                });
+              }}
+              disabled={googleLoading || !googleRequest}
+            >
+              {googleLoading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <View style={styles.googleButtonContent}>
+                  <Ionicons name="logo-google" size={20} color="#fff" style={styles.googleIcon} />
+                  <Text style={styles.googleButtonText}>Continue with Google</Text>
+                </View>
+              )}
+            </PressScale>
+
+            {/* Account Linking Modal */}
+            <Modal
+              visible={linkModalVisible}
+              transparent
+              animationType="fade"
+              onRequestClose={() => setLinkModalVisible(false)}
+            >
+              <View style={styles.modalOverlay}>
+                <View style={styles.modalContent}>
+                  <Text style={styles.modalTitle}>Link Google Account</Text>
+                  <Text style={styles.modalSubtitle}>
+                    An account with the email <Text style={{ fontWeight: '700', color: colors.violet }}>{linkEmail}</Text> already exists.
+                  </Text>
+                  <Text style={styles.modalInstruction}>
+                    Please enter your password to link your Google sign-in.
+                  </Text>
+
+                  <TextInput
+                    style={styles.modalInput}
+                    placeholder="Enter password"
+                    placeholderTextColor="rgba(255,255,255,0.3)"
+                    secureTextEntry
+                    value={linkPassword}
+                    onChangeText={setLinkPassword}
+                    autoCapitalize="none"
+                  />
+
+                  <View style={styles.modalButtons}>
+                    <TouchableOpacity
+                      style={[styles.modalButton, styles.modalCancelButton]}
+                      onPress={() => {
+                        setLinkModalVisible(false);
+                        setLinkPassword("");
+                      }}
+                    >
+                      <Text style={styles.modalCancelButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.modalButton, styles.modalLinkButton]}
+                      onPress={handleLinkAccount}
+                      disabled={linkingLoading}
+                    >
+                      {linkingLoading ? (
+                        <ActivityIndicator color="#fff" size="small" />
+                      ) : (
+                        <Text style={styles.modalLinkButtonText}>Link Account</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </Modal>
 
             {/* Navigation options to Sign Up */}
             <View style={styles.signupContainer}>
@@ -325,5 +482,125 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.violet,
     fontWeight: "800",
+  },
+  dividerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 18,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+  },
+  dividerText: {
+    color: colors.textDim,
+    fontSize: 12,
+    fontWeight: "700",
+    marginHorizontal: 16,
+    letterSpacing: 1,
+  },
+  googleButton: {
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: radius.xl,
+    paddingVertical: 16,
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  googleButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  googleIcon: {
+    marginRight: 12,
+  },
+  googleButtonText: {
+    fontSize: 16,
+    color: "#fff",
+    fontWeight: "700",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.85)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: colors.panelDeep,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 24,
+    width: "100%",
+    maxWidth: 400,
+    ...shadow.card,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#fff",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: colors.textMuted,
+    lineHeight: 20,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  modalInstruction: {
+    fontSize: 13,
+    color: colors.textDim,
+    lineHeight: 18,
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  modalInput: {
+    backgroundColor: "rgba(255,255,255,0.03)",
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.06)",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    fontSize: 15,
+    color: "#fff",
+    marginBottom: 24,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: radius.md,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalCancelButton: {
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  modalCancelButtonText: {
+    color: colors.textMuted,
+    fontWeight: "700",
+    fontSize: 14,
+  },
+  modalLinkButton: {
+    backgroundColor: colors.purple,
+    ...shadow.glowPurple,
+  },
+  modalLinkButtonText: {
+    color: "#fff",
+    fontWeight: "800",
+    fontSize: 14,
   },
 });

@@ -2,6 +2,7 @@
   "expo": {
     "name": "AI Calorie Tracker",
     "slug": "ai-calorie-tracker",
+    "scheme": "aicalorietracker",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -27,11 +28,19 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#080813"
       },
-      "permissions": ["CAMERA", "READ_MEDIA_IMAGES"]
+      "permissions": [
+        "CAMERA",
+        "READ_MEDIA_IMAGES"
+      ]
     },
-    "plugins": ["expo-camera"],
+    "plugins": [
+      "expo-camera",
+      "expo-web-browser"
+    ],
     "extra": {
-      "eas": { "projectId": "ai-calorie-tracker-project-id" }
+      "eas": {
+        "projectId": "ai-calorie-tracker-project-id"
+      }
     }
   }
 }

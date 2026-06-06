@@ -22,6 +22,9 @@ export interface UserProfile {
   fatTarget?: number;
   onboardingCompleted: boolean;
   weightHistory?: Array<{ date: string; weight: number }>;
+  photoURL?: string;
+  displayName?: string;
+  provider?: string;
   createdAt?: any;
   updatedAt?: any;
 }

@@ -6,9 +6,12 @@ import {
   signOut, 
   onAuthStateChanged,
   sendPasswordResetEmail,
-  updateProfile
+  updateProfile,
+  GoogleAuthProvider,
+  signInWithCredential,
+  linkWithCredential
 } from "firebase/auth";
-import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, getDoc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { auth, db } from "../firebase/config";
 import { useMealStore } from "../useMealStore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -21,6 +24,8 @@ interface AuthContextType {
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   checkOnboardingComplete: (userId: string) => Promise<boolean>;
+  loginWithGoogle: (idToken: string, accessToken?: string) => Promise<User>;
+  linkGoogleAccount: (email: string, password: string, idToken: string, accessToken?: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -91,6 +96,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await sendPasswordResetEmail(auth, email);
   };
 
+  const loginWithGoogle = async (idToken: string, accessToken?: string): Promise<User> => {
+    const credential = GoogleAuthProvider.credential(idToken, accessToken);
+    const userCredential = await signInWithCredential(auth, credential);
+    
+    // Check/create user document in Firestore
+    const userRef = doc(db, "users", userCredential.user.uid);
+    const userDoc = await getDoc(userRef);
+    
+    if (!userDoc.exists()) {
+      await setDoc(userRef, {
+        id: userCredential.user.uid,
+        uid: userCredential.user.uid,
+        email: userCredential.user.email || "",
+        displayName: userCredential.user.displayName || "",
+        name: userCredential.user.displayName || "",
+        photoURL: userCredential.user.photoURL || "",
+        provider: "google",
+        onboardingCompleted: false,
+        calorieTarget: null,
+        proteinTarget: null,
+        carbTarget: null,
+        fatTarget: null,
+        createdAt: serverTimestamp(),
+      });
+    }
+    return userCredential.user;
+  };
+
+  const linkGoogleAccount = async (email: string, password: string, idToken: string, accessToken?: string): Promise<void> => {
+    const credential = GoogleAuthProvider.credential(idToken, accessToken);
+    // 1. Sign in with email and password first
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    // 2. Link the credential to the current user
+    await linkWithCredential(userCredential.user, credential);
+    
+    // 3. Ensure Firestore user document exists/updates provider
+    const userRef = doc(db, "users", userCredential.user.uid);
+    const userDoc = await getDoc(userRef);
+    if (!userDoc.exists()) {
+      await setDoc(userRef, {
+        id: userCredential.user.uid,
+        uid: userCredential.user.uid,
+        email: userCredential.user.email || "",
+        displayName: userCredential.user.displayName || "",
+        name: userCredential.user.displayName || "",
+        photoURL: userCredential.user.photoURL || "",
+        provider: "google",
+        onboardingCompleted: false,
+        calorieTarget: null,
+        proteinTarget: null,
+        carbTarget: null,
+        fatTarget: null,
+        createdAt: serverTimestamp(),
+      });
+    } else {
+      await updateDoc(userRef, {
+        photoURL: userCredential.user.photoURL || userDoc.data().photoURL || "",
+      });
+    }
+  };
+
   const checkOnboardingComplete = async (userId: string): Promise<boolean> => {
     try {
       const userDoc = await getDoc(doc(db, "users", userId));
@@ -112,6 +178,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout,
     resetPassword,
     checkOnboardingComplete,
+    loginWithGoogle,
+    linkGoogleAccount,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -9,6 +9,7 @@ import {
   Easing,
   TouchableOpacity,
   Alert,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, radius, shadow, spacing, typography, ui } from "../components/DesignSystem";
@@ -107,8 +108,15 @@ export default function ProfileScreen({ navigation }: any) {
           <Animated.View style={[s.avatarGlowOrb, { opacity: avatarGlow }]} />
 
           <View style={s.illustrationWrapper}>
-            <Text style={s.illustrationIcon}>⚡</Text>
+            {profile?.photoURL ? (
+              <Image source={{ uri: profile.photoURL }} style={s.avatarImage} />
+            ) : (
+              <Text style={s.illustrationIcon}>⚡</Text>
+            )}
           </View>
+
+          <Text style={s.userNameText}>{profile?.displayName || profile?.name || "Fitness User"}</Text>
+          <Text style={s.userEmailText}>{profile?.email || ""}</Text>
 
           <Text style={s.statusText}>
             {profile?.goal
@@ -215,6 +223,25 @@ const s = StyleSheet.create({
   illustrationIcon: {
     fontSize: 28,
     color: colors.purple,
+  },
+  avatarImage: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+  },
+  userNameText: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#fff",
+    marginTop: 8,
+    marginBottom: 2,
+    zIndex: 1,
+  },
+  userEmailText: {
+    fontSize: 12,
+    color: colors.textDim,
+    marginBottom: 12,
+    zIndex: 1,
   },
   statusText: {
     fontSize: 9,
