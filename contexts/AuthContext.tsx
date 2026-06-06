@@ -78,12 +78,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
+      const uid = auth.currentUser?.uid;
+
       // 1. Reset Zustand store state
       useMealStore.getState().resetOnboarding();
       useMealStore.getState().setUserId(null);
       
       // 2. Wipe persisted AsyncStorage for this store
-      await AsyncStorage.removeItem('meal-tracker-store');
+      if (uid) {
+        await AsyncStorage.removeItem(`${uid}:meal-tracker-store`);
+      }
+      await AsyncStorage.removeItem('anon:meal-tracker-store');
       
       // 3. Sign out of Firebase
       await signOut(auth);

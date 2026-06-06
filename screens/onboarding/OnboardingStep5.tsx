@@ -114,7 +114,9 @@ export default function OnboardingStep5({ navigation, route }: any) {
       // Navigate to main app and reset navigation stack
       navigation.reset({ index: 0, routes: [{ name: 'Tabs' }] });
     } catch (error: any) {
-      console.error('Error completing onboarding:', error);
+      if (__DEV__) {
+        console.error('Error completing onboarding:', error);
+      }
       Alert.alert('Error', 'Failed to save your profile. Please try again.');
     } finally {
       setLoading(false);

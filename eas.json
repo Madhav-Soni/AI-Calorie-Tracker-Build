@@ -13,7 +13,10 @@
     },
     "production": {
       "autoIncrement": true,
-      "env": { "APP_ENV": "production" }
+      "env": {
+        "APP_ENV": "production",
+        "EXPO_PUBLIC_API_BASE": "https://your-actual-backend-url.com"
+      }
     }
   },
   "submit": {
