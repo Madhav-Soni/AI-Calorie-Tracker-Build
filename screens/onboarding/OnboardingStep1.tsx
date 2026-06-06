@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, StatusBar, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, StatusBar, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { PressScale } from '../../components/PressScale';
@@ -28,6 +28,7 @@ export default function OnboardingStep1({ navigation, route }: any) {
 
   const handleNext = () => {
     if (!name || !age || !gender || !height || !weight) {
+      Alert.alert("Missing Information", "Please fill in all the details before proceeding.");
       return;
     }
 

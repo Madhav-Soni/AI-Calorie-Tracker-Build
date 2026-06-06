@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      console.log("AUTH STATE: Timeout fallback triggered");
+      if (__DEV__) console.log("AUTH STATE: Timeout fallback triggered");
       setLoading(false);
     }, 3000);
 
@@ -39,7 +39,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearTimeout(timer);
       setUser(currentUser);
       setLoading(false);
-      console.log("AUTH STATE:", currentUser ? `Logged in: ${currentUser.uid}` : "Logged out");
+      if (__DEV__) {
+        console.log("AUTH STATE:", currentUser ? "Logged in (UID hidden)" : "Logged out");
+      }
     });
 
     return () => {

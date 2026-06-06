@@ -15,10 +15,11 @@ import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../App";
-import { useMealStore, selectDailyTotals } from "../useMealStore";
+import { useMealStore, selectDailyTotals, toLocalDateKey } from "../useMealStore";
 import { useUserProfileStore } from "../store/userProfileStore";
 import { useAuth } from "../contexts/AuthContext";
 import { getCoachRecommendation } from "../NutritionCoach";
+import { calculateStreaks } from "../streak";
 import Reanimated, {
   useSharedValue,
   useAnimatedProps,
@@ -144,8 +145,8 @@ export default function HomeScreen() {
 
   const totals = useMealStore(selectDailyTotals());
 
-  // Streak derived directly from active meals dates log (or fallback to simple math)
-  const streak = weightHistory.length > 0 ? Math.min(30, weightHistory.length) : 0;
+  // Streak derived directly from active meals dates log using calculateStreaks
+  const streak = calculateStreaks(meals.map((m) => m.loggedAt)).current;
 
   // Use real goals from profile, or fallback to defaults
   const GOAL = {
@@ -223,9 +224,21 @@ export default function HomeScreen() {
 
   const scanY = scanAnim.interpolate({ inputRange: [0, 1], outputRange: [-25, 25] });
 
-  // Simple mock calorie logs over the week (with current day injected)
+  // Dynamically calculate weekly calorie logs (Monday to Sunday)
   const todayDayIdx = (new Date().getDay() + 6) % 7;
-  const WEEKLY_VALS = [1720, 1850, 1620, 1980, totals.calories, 0, 0];
+  const WEEKLY_VALS = (() => {
+    const today = new Date();
+    const dow = today.getDay(); // 0=Sun
+    const mondayOffset = dow === 0 ? -6 : 1 - dow;
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today);
+      d.setDate(today.getDate() + mondayOffset + i);
+      const key = toLocalDateKey(d.toISOString());
+      return meals
+        .filter((m) => toLocalDateKey(m.loggedAt) === key)
+        .reduce((sum, m) => sum + (m.calories || 0), 0);
+    });
+  })();
   const DAYS = ["M", "T", "W", "T", "F", "S", "S"];
   const maxCalVal = Math.max(...WEEKLY_VALS, GOAL.calories);
 

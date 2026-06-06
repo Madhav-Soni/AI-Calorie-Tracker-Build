@@ -104,7 +104,7 @@ export async function analyzeFood(
   try {
     raw = await response.json();
   } catch (err) {
-    console.warn("[FRONTEND] Failed to parse response JSON", err);
+    if (__DEV__) console.warn("[FRONTEND] Failed to parse response JSON", err);
   }
 
   onProgress?.("success", 100);
@@ -119,7 +119,7 @@ export async function analyzeFood(
   };
 
   if (!raw || typeof raw !== "object") {
-    console.log("[FRONTEND RAW RESULT]", fallback);
+    if (__DEV__) console.log("[FRONTEND RAW RESULT]", fallback);
     return fallback;
   }
 
@@ -151,6 +151,6 @@ export async function analyzeFood(
     debug: raw.debug !== undefined ? raw.debug : undefined,
   };
 
-  console.log("[FRONTEND RAW RESULT]", result);
+  if (__DEV__) console.log("[FRONTEND RAW RESULT]", result);
   return result;
 }

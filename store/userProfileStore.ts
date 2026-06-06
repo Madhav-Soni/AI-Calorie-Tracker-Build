@@ -72,7 +72,7 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
 
     // Safety timeout to prevent infinite loading state
     const timer = setTimeout(() => {
-      console.log("PROFILE STATE: Timeout fallback triggered");
+      if (__DEV__) console.log("PROFILE STATE: Timeout fallback triggered");
       if (get().loading) {
         set({ loading: false });
       }
@@ -111,13 +111,15 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
             weightHistory: profileData.weightHistory || [],
           });
 
-          console.log("PROFILE STATE: Profile loaded successfully, onboardingCompleted:", profileData.onboardingCompleted);
+          if (__DEV__) {
+            console.log("PROFILE STATE: Profile loaded successfully, onboardingCompleted:", profileData.onboardingCompleted);
+          }
         } else {
           set({ 
             profile: null, 
             loading: false 
           });
-          console.log("PROFILE STATE: Profile does not exist");
+          if (__DEV__) console.log("PROFILE STATE: Profile does not exist");
         }
       },
       (error) => {
@@ -126,7 +128,7 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
           error: error.message,
           loading: false 
         });
-        console.error("PROFILE STATE: Fetch error:", error);
+        if (__DEV__) console.error("PROFILE STATE: Fetch error:", error);
       }
     );
 

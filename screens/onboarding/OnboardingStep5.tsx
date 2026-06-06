@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, StatusBar, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, StatusBar, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { PressScale } from '../../components/PressScale';
@@ -111,11 +111,11 @@ export default function OnboardingStep5({ navigation, route }: any) {
         onboardingCompleted: true,
       });
 
-      // Navigate to main app
-      navigation.replace('Tabs');
+      // Navigate to main app and reset navigation stack
+      navigation.reset({ index: 0, routes: [{ name: 'Tabs' }] });
     } catch (error: any) {
       console.error('Error completing onboarding:', error);
-      alert('Failed to save your profile. Please try again.');
+      Alert.alert('Error', 'Failed to save your profile. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -159,23 +159,35 @@ export default function OnboardingStep5({ navigation, route }: any) {
 
           {/* Macros */}
           <Text style={styles.sectionTitle}>Macro Targets</Text>
-          <View style={styles.macrosContainer}>
-            <View style={styles.macroCard}>
-              <Text style={[styles.macroLabel, { color: '#60a5fa' }]}>Protein</Text>
-              <Text style={styles.macroValue}>{calculatedGoals.protein}g</Text>
-              <Text style={styles.macroPercent}>35%</Text>
-            </View>
-            <View style={styles.macroCard}>
-              <Text style={[styles.macroLabel, { color: '#34d399' }]}>Carbs</Text>
-              <Text style={styles.macroValue}>{calculatedGoals.carbs}g</Text>
-              <Text style={styles.macroPercent}>35%</Text>
-            </View>
-            <View style={styles.macroCard}>
-              <Text style={[styles.macroLabel, { color: '#f472b6' }]}>Fat</Text>
-              <Text style={styles.macroValue}>{calculatedGoals.fat}g</Text>
-              <Text style={styles.macroPercent}>30%</Text>
-            </View>
-          </View>
+          {(() => {
+            const proteinCals = calculatedGoals.protein * 4;
+            const carbCals = calculatedGoals.carbs * 4;
+            const fatCals = calculatedGoals.fat * 9;
+            const totalCals = proteinCals + carbCals + fatCals;
+            const pPct = totalCals > 0 ? Math.round((proteinCals / totalCals) * 100) : 35;
+            const cPct = totalCals > 0 ? Math.round((carbCals / totalCals) * 100) : 35;
+            const fPct = 100 - pPct - cPct;
+
+            return (
+              <View style={styles.macrosContainer}>
+                <View style={styles.macroCard}>
+                  <Text style={[styles.macroLabel, { color: '#60a5fa' }]}>Protein</Text>
+                  <Text style={styles.macroValue}>{calculatedGoals.protein}g</Text>
+                  <Text style={styles.macroPercent}>{pPct}%</Text>
+                </View>
+                <View style={styles.macroCard}>
+                  <Text style={[styles.macroLabel, { color: '#34d399' }]}>Carbs</Text>
+                  <Text style={styles.macroValue}>{calculatedGoals.carbs}g</Text>
+                  <Text style={styles.macroPercent}>{cPct}%</Text>
+                </View>
+                <View style={styles.macroCard}>
+                  <Text style={[styles.macroLabel, { color: '#f472b6' }]}>Fat</Text>
+                  <Text style={styles.macroValue}>{calculatedGoals.fat}g</Text>
+                  <Text style={styles.macroPercent}>{fPct}%</Text>
+                </View>
+              </View>
+            );
+          })()}
 
           {/* Recommendations */}
           <Text style={styles.sectionTitle}>Recommendations</Text>
