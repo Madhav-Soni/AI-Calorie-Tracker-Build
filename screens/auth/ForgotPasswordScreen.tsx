@@ -42,7 +42,13 @@ export default function ForgotPasswordScreen({ navigation }: any) {
       await resetPassword(email);
       setSent(true);
     } catch (error: any) {
-      Alert.alert('Reset Failed', error.message);
+      const code = error?.code ?? "";
+      const msg =
+        code === "auth/invalid-email"        ? "Please enter a valid email address." :
+        code === "auth/user-not-found"       ? "No account found with this email." :
+        code === "auth/network-request-failed" ? "No internet connection. Please try again." :
+        "Could not send reset link. Please try again.";
+      Alert.alert('Reset Failed', msg);
     } finally {
       setLoading(false);
     }

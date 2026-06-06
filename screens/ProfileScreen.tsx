@@ -84,7 +84,7 @@ export default function ProfileScreen({ navigation }: any) {
     try {
       await logout();
     } catch (e: any) {
-      console.error("Logout Error:", e);
+      Alert.alert("Logout Failed", "Could not sign out. Please check your connection and try again.");
     }
   };
 

@@ -83,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // 3. Sign out of Firebase
       await signOut(auth);
     } catch (e) {
-      console.error('Sign out error:', e);
+      if (__DEV__) console.error('Sign out error:', e);
     }
   };
 
@@ -99,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return false;
     } catch (error) {
-      console.error("Error checking onboarding status:", error);
+      if (__DEV__) console.error("Error checking onboarding status:", error);
       return false;
     }
   };

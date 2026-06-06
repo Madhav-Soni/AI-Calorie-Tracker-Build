@@ -193,7 +193,7 @@ export default function CameraScreen() {
         );
       }
     } catch (error) {
-      console.error("[CAMERA ANALYSIS ERROR]", error);
+      if (__DEV__) console.error("[CAMERA ANALYSIS ERROR]", error);
       Alert.alert(
         "Analysis Error",
         "Could not analyze image. Please try again.",

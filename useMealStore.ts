@@ -175,7 +175,7 @@ export const useMealStore = create<MealStore>()(
           const mealRef = doc(db, "users", uid, "meals", newMeal.id);
           await setDoc(mealRef, newMeal);
         } catch (e) {
-          console.error("Error writing meal to Firestore:", e);
+          if (__DEV__) console.error("Error writing meal to Firestore:", e);
           // Rollback on failure
           set((state) => ({
             meals: state.meals.filter((m) => m.id !== newMeal.id),
@@ -311,7 +311,7 @@ export function subscribeToUserMeals(userId: string, onUpdate: (meals: Meal[]) =
       onUpdate(meals);
     },
     (err) => {
-      console.error("Error subscribing to meals:", err);
+      if (__DEV__) console.error("Error subscribing to meals:", err);
       useMealStore.setState({ mealsLoading: false, mealsError: err.message });
     }
   );

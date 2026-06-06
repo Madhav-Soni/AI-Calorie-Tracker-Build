@@ -58,7 +58,14 @@ export default function RegisterScreen({ navigation }: any) {
     try {
       await register(email, password, fullName);
     } catch (error: any) {
-      Alert.alert('Registration Failed', error.message);
+      const code = error?.code ?? "";
+      const msg =
+        code === "auth/email-already-in-use" ? "An account with this email already exists." :
+        code === "auth/invalid-email"        ? "Please enter a valid email address." :
+        code === "auth/weak-password"        ? "Password must be at least 6 characters." :
+        code === "auth/network-request-failed" ? "No internet connection. Please try again." :
+        "Registration failed. Please try again.";
+      Alert.alert("Registration Failed", msg);
     } finally {
       setLoading(false);
     }

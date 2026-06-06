@@ -153,6 +153,12 @@ router.post("/analyze-food", async (req: Request, res: Response): Promise<void> 
       return;
     }
 
+    const MAX_BASE64_BYTES = 2 * 1024 * 1024; // 2MB
+    if (base64.length > MAX_BASE64_BYTES) {
+      res.status(413).json({ error: "Image too large. Please use the in-app camera." });
+      return;
+    }
+
     const CF_ACCOUNT_ID = process.env.CF_ACCOUNT_ID;
     const CF_API_TOKEN = process.env.CF_API_TOKEN;
 

@@ -79,7 +79,15 @@ export default function LoginScreen({ navigation }: any) {
     try {
       await login(email, password);
     } catch (error: any) {
-      setGeneralError(error.message || "Login failed. Please check your credentials.");
+      const code = error?.code ?? "";
+      const msg =
+        code === "auth/invalid-email"        ? "Please enter a valid email address." :
+        code === "auth/user-not-found" || code === "auth/wrong-password" || code === "auth/invalid-credential"
+          ? "Incorrect email or password."
+          : code === "auth/network-request-failed"
+          ? "No internet connection. Please try again."
+          : "Login failed. Please check your credentials.";
+      setGeneralError(msg);
     } finally {
       setLoading(false);
     }
