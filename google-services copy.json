@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "110701774675",
+    "project_id": "ai-calorie-tracker-build",
+    "storage_bucket": "ai-calorie-tracker-build.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:110701774675:android:a7f955b4abbe67376c43a6",
+        "android_client_info": {
+          "package_name": "com.madhav.aicalorietracker"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "110701774675-n9avc6rj1dj6s8fiuhq9sij0u2v522nh.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBSW4fnGbS32T5_NWfTZ05RAY0uEPg-jj4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "110701774675-n9avc6rj1dj6s8fiuhq9sij0u2v522nh.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
