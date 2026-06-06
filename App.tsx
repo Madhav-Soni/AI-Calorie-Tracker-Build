@@ -67,7 +67,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PressScale } from "./components/PressScale";
 import { colors, radius, shadow } from "./components/DesignSystem";
 
-const MemoizedCustomTabBar = React.memo(function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const rootNav = navigation.getParent<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
 
@@ -127,13 +127,13 @@ const MemoizedCustomTabBar = React.memo(function CustomTabBar({ state, descripto
       </PressScale>
     </View>
   );
-});
+}
 
 function TabNavigator() {
   return (
     <Tab.Navigator
       id="TabNavigator"
-      tabBar={MemoizedCustomTabBar}
+      tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{ headerShown: false }}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
@@ -160,8 +160,12 @@ function AppNavigator() {
         useMealStore.getState().syncMealsFromFirebase(meals);
       });
       return () => {
-        unsubscribeProfile();
-        unsubscribeMeals();
+        if (typeof unsubscribeProfile === "function") {
+          unsubscribeProfile();
+        }
+        if (typeof unsubscribeMeals === "function") {
+          unsubscribeMeals();
+        }
         useMealStore.getState().resetStore();
         useMealStore.getState().setUserId(null);
         useUserProfileStore.getState().clearProfile();

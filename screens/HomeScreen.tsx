@@ -15,7 +15,7 @@ import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../App";
-import { useMealStore, selectDailyTotals, toLocalDateKey } from "../useMealStore";
+import { useMealStore, toLocalDateKey } from "../useMealStore";
 import { useUserProfileStore } from "../store/userProfileStore";
 import { useAuth } from "../contexts/AuthContext";
 import { getCoachRecommendation } from "../NutritionCoach";
@@ -143,7 +143,20 @@ export default function HomeScreen() {
   const deleteMeal = useMealStore((s) => s.deleteMeal);
   const weightHistory = useMealStore((s) => s.weightHistory);
 
-  const totals = useMealStore(selectDailyTotals());
+  const totals = React.useMemo(() => {
+    const key = toLocalDateKey(new Date().toISOString());
+    const daily = meals.filter((m) => toLocalDateKey(m.loggedAt) === key);
+    return daily.reduce(
+      (acc, m) => ({
+        calories: acc.calories + (m.calories || 0),
+        protein: acc.protein + (m.protein || 0),
+        carbs: acc.carbs + (m.carbs || 0),
+        fat: acc.fat + (m.fat || 0),
+        mealCount: acc.mealCount + 1,
+      }),
+      { calories: 0, protein: 0, carbs: 0, fat: 0, mealCount: 0 }
+    );
+  }, [meals]);
 
   // Streak derived directly from active meals dates log using calculateStreaks
   const streak = calculateStreaks(meals.map((m) => m.loggedAt)).current;
