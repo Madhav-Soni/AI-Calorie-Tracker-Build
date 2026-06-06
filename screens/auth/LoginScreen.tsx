@@ -51,6 +51,7 @@ export default function LoginScreen({ navigation }: any) {
     iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS,
     androidClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID,
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB,
+    clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB,
     responseType: "id_token",
     scopes: ["profile", "email"],
   });
