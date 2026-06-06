@@ -22,4 +22,5 @@ backend/node_modules/
 *.keystore
 android/app/*.keystore
 android/app/release.keystore
+@3000tonystark6969__ai-calorie-tracker.jks
 
