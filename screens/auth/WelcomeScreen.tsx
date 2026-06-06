@@ -25,6 +25,12 @@ export default function WelcomeScreen({ navigation }: any) {
   });
 
   useEffect(() => {
+    if (googleRequest?.url && __DEV__) {
+      console.log("WELCOME REDIRECT URI:", googleRequest.url);
+    }
+  }, [googleRequest]);
+
+  useEffect(() => {
     if (googleResponse?.type === "success") {
       const { id_token, access_token } = googleResponse.params;
       if (!id_token) {
