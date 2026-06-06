@@ -3,6 +3,12 @@ import { foodNutritionDB, dbAliases, NutritionEntry } from "../data/foodNutritio
 
 const router = Router();
 
+const devLog = (...args: any[]) => {
+  if (process.env.NODE_ENV !== "production") {
+    console.log(...args);
+  }
+};
+
 // ─── Step 1 Prompt: Food Vision Detection ──────────────────────────────────────
 const DETECT_PROMPT = `You are a food recognition vision AI.
 
@@ -158,14 +164,14 @@ router.post("/analyze-food", async (req: Request, res: Response): Promise<void> 
     const cleanBase64 = base64.replace(/^data:image\/\w+;base64,/, "");
     const imageBytes = Array.from(Buffer.from(cleanBase64, "base64"));
 
-    console.log("[BACKEND] Calling Vision Model...");
+    devLog("[BACKEND] Calling Vision Model...");
     let result = await callCloudflare(imageBytes, DETECT_PROMPT, CF_ACCOUNT_ID, CF_API_TOKEN);
     let rawResponse = result?.result?.response || "";
-    console.log("[BACKEND] Raw response:", rawResponse);
+    devLog("[BACKEND] Raw response:", rawResponse);
 
     let parsed = safeParseJSON(rawResponse);
     if (!parsed || typeof parsed.validImage === "undefined") {
-      console.log("[BACKEND] Malformed AI Response. Retrying...");
+      devLog("[BACKEND] Malformed AI Response. Retrying...");
       result = await callCloudflare(imageBytes, RETRY_PROMPT, CF_ACCOUNT_ID, CF_API_TOKEN);
       rawResponse = result?.result?.response || "";
       parsed = safeParseJSON(rawResponse);
@@ -173,7 +179,7 @@ router.post("/analyze-food", async (req: Request, res: Response): Promise<void> 
 
     // Default parser fallback if AI vision completely fails to format JSON
     if (!parsed) {
-      console.log("[BACKEND] AI failed JSON structure. Running default parser recovery.");
+      devLog("[BACKEND] AI failed JSON structure. Running default parser recovery.");
       const lower = rawResponse.toLowerCase();
       
       // Basic heuristic recovery
@@ -190,7 +196,7 @@ router.post("/analyze-food", async (req: Request, res: Response): Promise<void> 
 
     // Check image validation block
     if (parsed.validImage === false) {
-      console.log("[BACKEND] Vision model flagged image quality:", parsed.reason);
+      devLog("[BACKEND] Vision model flagged image quality:", parsed.reason);
       res.status(200).json({
         validImage: false,
         reason: parsed.reason || "Take a clearer meal photo.",
@@ -245,7 +251,7 @@ router.post("/analyze-food", async (req: Request, res: Response): Promise<void> 
         totalFat += entry.fat;
       } else {
         // Fallback estimation using auxiliary call or default values
-        console.log(`[BACKEND] DB Miss for "${name}". Requesting helper calculation...`);
+        devLog(`[BACKEND] DB Miss for "${name}". Requesting helper calculation...`);
         const estimated = await fetchAIEstimate(name, CF_ACCOUNT_ID, CF_API_TOKEN);
         
         if (estimated) {

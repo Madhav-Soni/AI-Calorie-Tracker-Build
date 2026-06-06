@@ -21,20 +21,24 @@ const { width: W } = Dimensions.get("window");
 
 export default function ProgressScreen() {
   const userProfile = useUserProfileStore((s) => s.profile);
-  const weightHistory = useMealStore((s) => s.weightHistory);
+  const weightHistory = userProfile?.weightHistory ?? [];
   const logWeight = useMealStore((s) => s.logWeight);
 
   const [inputWeight, setInputWeight] = useState("");
 
-  const handleLogWeight = () => {
+  const handleLogWeight = async () => {
     const wVal = parseFloat(inputWeight);
     if (isNaN(wVal) || wVal < 20 || wVal > 350) {
       Alert.alert("Invalid Input", "Please enter a valid weight in kg.");
       return;
     }
-    logWeight(wVal);
-    setInputWeight("");
-    Keyboard.dismiss();
+    try {
+      await logWeight(wVal);
+      setInputWeight("");
+      Keyboard.dismiss();
+    } catch {
+      Alert.alert("Save Failed", "Could not save your weight. Please check your connection and try again.");
+    }
   };
 
   const currentWeight = userProfile?.weight || (weightHistory.length > 0 ? weightHistory[weightHistory.length - 1].weight : null);

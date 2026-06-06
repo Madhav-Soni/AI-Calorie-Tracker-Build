@@ -490,7 +490,7 @@ export default function FoodAnalysisScreen() {
               </View>
 
               {/* Developer Debug Panel */}
-              {d.debug && (
+              {__DEV__ && d.debug && (
                 <View style={s.debugPanel}>
                   <TouchableOpacity
                     style={s.debugHeader}

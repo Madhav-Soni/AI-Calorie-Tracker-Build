@@ -22,8 +22,8 @@ const limiter = rateLimit({
   message: { error: "Too many requests. Please wait before scanning again." },
 });
 
+app.use(express.json({ limit: "10mb" }));
 app.use("/analyze-food", limiter);
-app.use(express.json({ limit: "20mb" }));
 app.use(analyzeFood);
 
 app.get("/", (_req, res) => {

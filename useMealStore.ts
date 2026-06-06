@@ -250,6 +250,7 @@ export const useMealStore = create<MealStore>()(
           );
         } catch (e) {
           if (__DEV__) console.error("[logWeight] Firestore write failed:", e);
+          throw e;
         }
       }
     },

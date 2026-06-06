@@ -5,7 +5,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, radius, shadow, spacing, typography, ui } from "../components/DesignSystem";
-import { useMealStore, Meal } from "../useMealStore";
+import { useMealStore, Meal, toLocalDateKey } from "../useMealStore";
+import { calculateStreaks } from "../streak";
 
 const { width: W } = Dimensions.get("window");
 const CARD_BG = colors.panelSolid;
@@ -115,15 +116,15 @@ export default function HistoryScreen() {
 
   // Weekly data calculations
   const weeklyCalories = weekDates.map((date, i) => {
-    const dateStr = date.toISOString().slice(0, 10);
-    const dailyMeals = meals.filter((m: Meal) => m.loggedAt.slice(0, 10) === dateStr);
+    const dateStr = toLocalDateKey(date.toISOString());
+    const dailyMeals = meals.filter((m: Meal) => toLocalDateKey(m.loggedAt) === dateStr);
     const totalCal = dailyMeals.reduce((sum: number, m: Meal) => sum + m.calories, 0);
     return { day: daysShort[i], value: totalCal };
   });
 
   const weeklyProtein = weekDates.map((date, i) => {
-    const dateStr = date.toISOString().slice(0, 10);
-    const dailyMeals = meals.filter((m: Meal) => m.loggedAt.slice(0, 10) === dateStr);
+    const dateStr = toLocalDateKey(date.toISOString());
+    const dailyMeals = meals.filter((m: Meal) => toLocalDateKey(m.loggedAt) === dateStr);
     const totalPro = dailyMeals.reduce((sum: number, m: Meal) => sum + m.protein, 0);
     return { day: daysShort[i], value: totalPro };
   });
@@ -139,66 +140,20 @@ export default function HistoryScreen() {
   const avgPro = Math.round(weeklyProtein.reduce((a, b) => a + b.value, 0) / 7);
 
   // Streak calculations
-  const calculateStreak = () => {
-    if (meals.length === 0) return { current: 0, longest: 0, total: 0, thisWeek: [false, false, false, false, false, false, false] };
-    
-    const loggedDates = new Set<string>(meals.map((m: Meal) => m.loggedAt.slice(0, 10)));
-    
-    const thisWeek = weekDates.map(date => {
-      const dateStr = date.toISOString().slice(0, 10);
-      return loggedDates.has(dateStr);
-    });
+  const streakResult = calculateStreaks(meals.map((m: Meal) => m.loggedAt));
+  const loggedDateSet = new Set(meals.map((m: Meal) => toLocalDateKey(m.loggedAt)));
+  const thisWeek = weekDates.map(d => loggedDateSet.has(toLocalDateKey(d.toISOString())));
 
-    let current = 0;
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const yesterdayStr = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-    
-    let checkDate = todayStr;
-    if (!loggedDates.has(todayStr)) {
-      checkDate = yesterdayStr;
-    }
-    
-    const d = new Date(checkDate);
-    while (loggedDates.has(d.toISOString().slice(0, 10))) {
-      current++;
-      d.setDate(d.getDate() - 1);
-    }
-
-    let longest = 0;
-    let temp = 0;
-    const ascDates = Array.from(loggedDates).map((d: string) => new Date(d)).sort((a, b) => a.getTime() - b.getTime());
-    
-    let lastTime: number | null = null;
-    for (const date of ascDates) {
-      if (lastTime === null) {
-        temp = 1;
-      } else {
-        const diffTime = Math.abs(date.getTime() - lastTime);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        if (diffDays === 1) {
-          temp++;
-        } else if (diffDays > 1) {
-          longest = Math.max(longest, temp);
-          temp = 1;
-        }
-      }
-      lastTime = date.getTime();
-    }
-    longest = Math.max(longest, temp);
-
-    return {
-      current,
-      longest,
-      total: loggedDates.size,
-      thisWeek
-    };
+  const streak = {
+    current: streakResult.current,
+    longest: streakResult.best,
+    total: loggedDateSet.size,
+    thisWeek,
   };
 
-  const streak = calculateStreak();
-
   // Today's Macro Split calculations
-  const todayKey = new Date().toISOString().slice(0, 10);
-  const todayMeals = meals.filter((m: Meal) => m.loggedAt.slice(0, 10) === todayKey);
+  const todayKey = toLocalDateKey(new Date().toISOString());
+  const todayMeals = meals.filter((m: Meal) => toLocalDateKey(m.loggedAt) === todayKey);
   const todayCal = todayMeals.reduce((sum: number, m: Meal) => sum + m.calories, 0);
   const todayPro = todayMeals.reduce((sum: number, m: Meal) => sum + m.protein, 0);
   const todayCarbs = todayMeals.reduce((sum: number, m: Meal) => sum + m.carbs, 0);
