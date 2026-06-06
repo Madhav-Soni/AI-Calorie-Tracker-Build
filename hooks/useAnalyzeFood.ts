@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   analyzeFood,
   AnalysisResult,
@@ -19,6 +19,14 @@ export function useAnalyzeFood(): UseAnalyzeFoodReturn {
   const [state, setState] = useState<AnalysisState>(INITIAL_STATE);
   // Prevent stale state updates if component unmounts mid-request
   const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   const set = (s: AnalysisState) => { if (mountedRef.current) setState(s); };
 
   const analyze = useCallback(async (imageUri: string): Promise<AnalysisResult | null> => {

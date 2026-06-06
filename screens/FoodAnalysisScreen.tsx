@@ -123,7 +123,7 @@ export default function FoodAnalysisScreen() {
         Alert.alert("Error", "Could not analyze image. Please try again.");
       }
     } catch (error) {
-      console.error("[FRONTEND ERROR DURING ANALYSIS]", error);
+      if (__DEV__) console.error("[FRONTEND ERROR DURING ANALYSIS]", error);
       Alert.alert("Error", "Could not analyze image. Please try again.");
     }
   };
@@ -132,7 +132,7 @@ export default function FoodAnalysisScreen() {
     if (analysisResult) hydrate(analysisResult);
     else if (imageUri) {
       runAnalysis(imageUri).catch(err => {
-        console.error("[FRONTEND ERROR DURING ANALYSIS EFFECT]", err);
+        if (__DEV__) console.error("[FRONTEND ERROR DURING ANALYSIS EFFECT]", err);
       });
     }
   }, []);

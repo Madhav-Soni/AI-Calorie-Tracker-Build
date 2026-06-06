@@ -1,4 +1,4 @@
-package com.anonymous.aicalorietrackerbuild
+package com.madhav.aicalorietracker
 
 import android.os.Build
 import android.os.Bundle

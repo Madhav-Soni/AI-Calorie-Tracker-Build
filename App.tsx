@@ -153,7 +153,7 @@ function AppNavigator() {
   React.useEffect(() => {
     if (user) {
       useMealStore.getState().clearForSignOut();
-      useUserProfileStore.getState().clearProfile();
+      useUserProfileStore.setState({ profile: null, loading: true, error: null });
       useMealStore.getState().setUserId(user.uid);
       const unsubscribeProfile = subscribeToProfile(user.uid);
       const unsubscribeMeals = subscribeToUserMeals(user.uid, (meals) => {

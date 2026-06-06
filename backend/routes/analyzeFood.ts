@@ -9,6 +9,12 @@ const devLog = (...args: any[]) => {
   }
 };
 
+const devError = (...args: any[]) => {
+  if (process.env.NODE_ENV !== "production") {
+    console.error(...args);
+  }
+};
+
 // ─── Step 1 Prompt: Food Vision Detection ──────────────────────────────────────
 const DETECT_PROMPT = `You are a food recognition vision AI.
 
@@ -130,7 +136,7 @@ async function fetchAIEstimate(food: string, accountId: string, apiToken: string
       return parsed;
     }
   } catch (e) {
-    console.error("AI estimation fallback failed:", e);
+    devError("AI estimation fallback failed:", e);
   }
   return null;
 }
@@ -315,7 +321,7 @@ router.post("/analyze-food", async (req: Request, res: Response): Promise<void> 
     res.status(200).json(payload);
 
   } catch (error) {
-    console.error("[BACKEND ERROR]", error);
+    devError("[BACKEND ERROR]", error);
     res.status(200).json(fallbackPayload);
   }
 });

@@ -207,11 +207,9 @@ export default function HomeScreen() {
   const slideAnim = useRef(new Animated.Value(15)).current;
   const scanAnim = useRef(new Animated.Value(0)).current;
 
+  // Entry animations — run once on mount
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(pAnim, { toValue: Math.min(1, totals.protein / GOAL.protein), duration: 1000, delay: 100, useNativeDriver: false }),
-      Animated.timing(cAnim, { toValue: Math.min(1, totals.carbs / GOAL.carbs), duration: 1000, delay: 200, useNativeDriver: false }),
-      Animated.timing(fAnim, { toValue: Math.min(1, totals.fat / GOAL.fat), duration: 1000, delay: 300, useNativeDriver: false }),
       Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: 0, duration: 500, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
     ]).start();
@@ -220,7 +218,16 @@ export default function HomeScreen() {
       Animated.timing(scanAnim, { toValue: 1, duration: 1500, useNativeDriver: true }),
       Animated.timing(scanAnim, { toValue: 0, duration: 0, useNativeDriver: true }),
     ])).start();
-  }, [totals.calories, GOAL.calories]);
+  }, []); // Mount-only
+
+  // Macro bar progress updates
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(pAnim, { toValue: Math.min(1, totals.protein / GOAL.protein), duration: 1000, delay: 100, useNativeDriver: false }),
+      Animated.timing(cAnim, { toValue: Math.min(1, totals.carbs / GOAL.carbs), duration: 1000, delay: 200, useNativeDriver: false }),
+      Animated.timing(fAnim, { toValue: Math.min(1, totals.fat / GOAL.fat), duration: 1000, delay: 300, useNativeDriver: false }),
+    ]).start();
+  }, [totals.protein, totals.carbs, totals.fat, GOAL.protein, GOAL.carbs, GOAL.fat]);
 
   const scanY = scanAnim.interpolate({ inputRange: [0, 1], outputRange: [-25, 25] });
 

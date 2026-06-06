@@ -43,7 +43,12 @@ export const INITIAL_STATE: AnalysisState = {
   progress: 0,
 };
 
-export const API_BASE = "http://10.20.6.142:3000";
+export const API_BASE =
+  (process.env.EXPO_PUBLIC_API_BASE ?? "").length > 0
+    ? process.env.EXPO_PUBLIC_API_BASE!
+    : __DEV__
+    ? "http://10.20.6.142:3000"  // local dev fallback
+    : "";  // forces a visible error in prod if not configured
 
 const ANALYZE_ENDPOINT = `${API_BASE}/analyze-food`;
 const TIMEOUT_MS = 30_000;

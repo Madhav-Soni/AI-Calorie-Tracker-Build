@@ -17,3 +17,9 @@ google-services.json
 GoogleService-Info.plist
 backend/.env
 backend/node_modules/
+
+# Keystores
+*.keystore
+android/app/*.keystore
+android/app/release.keystore
+
